@@ -27,7 +27,7 @@ jobs:
       - name: 🔥 Deploy to Firebase
         uses: w9jds/firebase-action@v13.0.1
         with:
-          args: deploy --only hosting
+          args: deploy --only hosting:zenya-nails-spa
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ZENYA_APP_476BC }}
     # steps:
