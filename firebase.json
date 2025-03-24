@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "sute": "zenya-nails-spa",
     "public": "build",
     "ignore": [
       "firebase.json",
