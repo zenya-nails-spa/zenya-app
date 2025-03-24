@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "zenya-app-476bc"
+  },
+  "targets": {
+    "your-firebase-project-id": {
+      "hosting": {
+        "default": ["zenya-nails-spa"]
+      }
+    }
   }
 }
+
