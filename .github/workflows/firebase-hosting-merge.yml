@@ -29,7 +29,7 @@ jobs:
         with:
           args: deploy --only hosting:zenya-nails-spa
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ZENYA_APP_476BC }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
     # steps:
     #   - uses: actions/checkout@v4
     #   - run: npm ci & npm run build
