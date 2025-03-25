@@ -30,6 +30,7 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ZENYA_APP_476BC }}
           channelId: live
+          projectId: zenya-app-476bc
     # steps:
     #   - uses: actions/checkout@v4
     #   - run: npm ci & npm run build
