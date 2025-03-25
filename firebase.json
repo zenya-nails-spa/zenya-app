@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "zenya-nails-spa",
+    "site": "zenya-app-476bc",
     "public": "build",
     "ignore": [
       "firebase.json",
