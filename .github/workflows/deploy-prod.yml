@@ -1,8 +1,10 @@
-name: Deploy to Firebase Hosting on merge
+name: Deploy to Firebase Hosting on merge (PROD)
+
 on:
   push:
     branches:
       - master
+
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -13,7 +15,7 @@ jobs:
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18' # or your version
+          node-version: '20'
 
       - name: 📦 Install Dependencies
         run: npm install
@@ -21,19 +23,10 @@ jobs:
       - name: 🏗️ Build React App
         run: npm run build
 
-      - name: 🔥 Deploy to Firebase
+      - name: 🔥 Deploy to Firebase (PROD)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ZENYA_APP_476BC }}
           channelId: live
           projectId: zenya-app-476bc
-    # steps:
-    #   - uses: actions/checkout@v4
-    #   - run: npm ci & npm run build
-    #   - uses: FirebaseExtended/action-hosting-deploy@v0
-    #     with:
-    #       repoToken: ${{ secrets.GITHUB_TOKEN }}
-    #       firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ZENYA_APP_476BC }}
-    #       channelId: live
-    #       projectId: zenya-app-476bc
