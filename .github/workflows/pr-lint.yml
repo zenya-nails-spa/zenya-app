@@ -1,0 +1,25 @@
+name: Lint and Code Quality Check
+
+on:
+  pull_request:
+    branches:
+      - '**'  # <-- means run on PRs from any branch to any branch (stage, master, feature/*, etc.)
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'  # or whatever version you use (16, 18, 20)
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
