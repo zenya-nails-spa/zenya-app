@@ -1,13 +1,6 @@
 {
   "projects": {
-    "default": "zenya-app-476bc"
-  },
-  "targets": {
-    "your-firebase-project-id": {
-      "hosting": {
-        "default": ["zenya-nails-spa"]
-      }
-    }
+    "default": "zenya-app-476bc",
+    "stage": "zenya-nails-spa-stage"
   }
 }
-
