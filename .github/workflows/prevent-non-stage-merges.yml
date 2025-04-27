@@ -1,0 +1,19 @@
+# .github/workflows/prevent-non-stage-merges.yml
+name: Prevent non-stage merges
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  check-source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if not from stage
+        run: |
+          echo "Source branch: ${{ github.head_ref }}"
+          if [[ "${{ github.head_ref }}" != "stage" ]]; then
+            echo "You can only merge 'stage' into 'master'. Current source: ${{ github.head_ref }}"
+            exit 1
+          fi
