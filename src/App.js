@@ -1,19 +1,16 @@
-import logo from './logo.svg';
 import './App.css';
 
 const App = () => {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a className="App-link" href="https://reactjs.org" target="_blank" rel="noopener noreferrer">
-          Learn React
+    <main style={{ padding: '2rem', maxWidth: 860, margin: '0 auto' }}>
+      <h1>Zenyaasdfa Nails & Spa</h1>
+      <p>Bienvenida a Zenya Nails & Spa 🌸</p>
+      <p>
+        <a href="privacy-policy.html" target="_blank" rel="noopener">
+          Ver Política de Privacidad
         </a>
-      </header>
-    </div>
+      </p>
+    </main>
   );
 };
 
