@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Fail if not from stage
+        if: github.base_ref == 'master'
         run: |
           echo "Source branch: ${{ github.head_ref }}"
           if [[ "${{ github.head_ref }}" != "stage" ]]; then
