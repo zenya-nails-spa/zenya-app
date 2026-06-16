@@ -7,17 +7,12 @@ runConfig:
   # cpu: 1
   # memoryMiB: 512
 
-# Environment variables and secrets.
-# env:
-  # Configure environment variables.
-  # See https://firebase.google.com/docs/app-hosting/configure#user-defined-environment
-  # - variable: MESSAGE
-  #   value: Hello world!
-  #   availability:
-  #     - BUILD
-  #     - RUNTIME
-
-  # Grant access to secrets in Cloud Secret Manager.
-  # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
-  # - variable: MY_SECRET
-  #   secret: mySecretRef
+env:
+  - variable: REACT_APP_API_URL
+    value: https://api-stage.zenya.com.mx
+    availability:
+      - BUILD
+  - variable: REACT_APP_API_KEY
+    value: zenya-api-prod-2026
+    availability:
+      - BUILD
