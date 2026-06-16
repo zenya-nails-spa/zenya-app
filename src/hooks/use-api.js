@@ -10,9 +10,21 @@ export function useApi(fetcher, deps = []) {
     setLoading(true);
     setError(null);
     fetcher()
-      .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
-      .catch((e) => { if (!cancelled) { setError(e); setLoading(false); } });
-    return () => { cancelled = true; };
+      .then((d) => {
+        if (!cancelled) {
+          setData(d);
+          setLoading(false);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(e);
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, deps); // eslint-disable-line
 
   return { data, loading, error };
