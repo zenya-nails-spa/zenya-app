@@ -42,8 +42,12 @@ const Overview = () => {
   const { data: recentBookings } = useApi(() => api.bookings({ ...thisMonth, limit: 6 }), []);
 
   const revDelta = kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
-  const apptDelta = kpis && kpisPrev?.bookings_count ? ((kpis.bookings_count - kpisPrev.bookings_count) / kpisPrev.bookings_count) * 100 : 0;
-  const ticketDelta = kpis && kpisPrev?.avg_ticket ? ((kpis.avg_ticket - kpisPrev.avg_ticket) / kpisPrev.avg_ticket) * 100 : 0;
+  const apptDelta =
+    kpis && kpisPrev?.bookings_count
+      ? ((kpis.bookings_count - kpisPrev.bookings_count) / kpisPrev.bookings_count) * 100
+      : 0;
+  const ticketDelta =
+    kpis && kpisPrev?.avg_ticket ? ((kpis.avg_ticket - kpisPrev.avg_ticket) / kpisPrev.avg_ticket) * 100 : 0;
 
   const chartData = useMemo(() => revByDay?.map((r) => r.revenue) ?? [], [revByDay]);
   const chartLabels = useMemo(() => revByDay?.map((r) => `Día ${new Date(r.date).getDate()}`) ?? [], [revByDay]);
@@ -119,17 +123,19 @@ const Overview = () => {
         </Card>
 
         <Card eyebrow="Servicios" title="Top servicios">
-          {(topServices ?? D.services.slice(0, 5).map((s) => ({ name: s.name, revenue: s.rev, count: s.count }))).map((s, i) => (
-            <RankRow
-              key={s.name}
-              rank={i + 1}
-              label={s.name}
-              value={money(s.revenue)}
-              ratio={s.revenue / maxServiceRev}
-              color={D.CHART[i % D.CHART.length]}
-              last={i === 4}
-            />
-          ))}
+          {(topServices ?? D.services.slice(0, 5).map((s) => ({ name: s.name, revenue: s.rev, count: s.count }))).map(
+            (s, i) => (
+              <RankRow
+                key={s.name}
+                rank={i + 1}
+                label={s.name}
+                value={money(s.revenue)}
+                ratio={s.revenue / maxServiceRev}
+                color={D.CHART[i % D.CHART.length]}
+                last={i === 4}
+              />
+            )
+          )}
         </Card>
       </div>
 
@@ -143,7 +149,7 @@ const Overview = () => {
                   display: 'flex',
                   gap: 12,
                   padding: '10px 0',
-                  borderBottom: i < (recentBookings.length - 1) ? '1px solid var(--border-subtle)' : 'none',
+                  borderBottom: i < recentBookings.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                   alignItems: 'flex-start',
                 }}
               >
@@ -158,7 +164,9 @@ const Overview = () => {
                   }}
                 />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>
+                  <div
+                    style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}
+                  >
                     {b.service_name ?? 'Cita'} — {money(b.amount ?? 0)}
                   </div>
                   <div
@@ -173,22 +181,58 @@ const Overview = () => {
                     }}
                   >
                     <Clock size={11} strokeWidth={1.5} />
-                    {b.start ? new Date(b.start).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    {b.start
+                      ? new Date(b.start).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+                      : '—'}
                   </div>
                 </div>
               </div>
             ))}
-            {!recentBookings?.length && D.activity.map((item, i) => (
-              <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: i < D.activity.length - 1 ? '1px solid var(--border-subtle)' : 'none', alignItems: 'flex-start' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.type === 'paid' ? 'var(--green-500)' : 'var(--amber-500)', flexShrink: 0, marginTop: 5 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>{item.text}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, fontFamily: 'var(--font-sans)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                    <Clock size={11} strokeWidth={1.5} />{item.time}
+            {!recentBookings?.length &&
+              D.activity.map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    gap: 12,
+                    padding: '10px 0',
+                    borderBottom: i < D.activity.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: item.type === 'paid' ? 'var(--green-500)' : 'var(--amber-500)',
+                      flexShrink: 0,
+                      marginTop: 5,
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}
+                    >
+                      {item.text}
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        marginTop: 3,
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 'var(--text-xs)',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      <Clock size={11} strokeWidth={1.5} />
+                      {item.time}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </Card>
 
@@ -209,15 +253,43 @@ const Overview = () => {
               <div
                 key={s.professional_id}
                 className="z-row"
-                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: i < staffData.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '12px 0',
+                  borderBottom: i < staffData.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                }}
               >
                 <Avatar name={name} size="sm" tone={i === 0 ? 'rose' : i === 1 ? 'lavender' : 'ink'} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)', color: 'var(--text-heading)' }}>{name}</div>
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 'var(--fw-medium)',
+                      color: 'var(--text-heading)',
+                    }}
+                  >
+                    {name}
+                  </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-semibold)', color: 'var(--text-heading)' }}>{money(s.revenue)}</div>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{s.bookings} citas</div>
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 'var(--fw-semibold)',
+                      color: 'var(--text-heading)',
+                    }}
+                  >
+                    {money(s.revenue)}
+                  </div>
+                  <div
+                    style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}
+                  >
+                    {s.bookings} citas
+                  </div>
                 </div>
               </div>
             );
