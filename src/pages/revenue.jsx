@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import D from '../mocks/data';
+import { useState, useMemo } from 'react';
+import { api } from '../lib/api';
+import { useApi } from '../hooks/use-api';
 import StatCard from '../components/widgets/stat-card';
 import Card from '../components/ui/card';
 import AreaChart from '../components/charts/area-chart';
@@ -11,8 +12,22 @@ import LegendRow from '../components/ui/legend-row';
 import SegmentedControl from '../components/ui/segmented-control';
 import DeltaBadge from '../components/ui/delta-badge';
 
-const revDelta = ((D.totals.revMonth - D.totals.revPrevMonth) / D.totals.revPrevMonth) * 100;
-const ticketDelta = ((D.totals.avgTicket - D.totals.avgTicketPrev) / D.totals.avgTicketPrev) * 100;
+const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
+const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
+
+function thisMonthRange() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const to = now.toISOString().slice(0, 10);
+  return { from_date: from, to_date: to };
+}
+
+function prevMonthRange() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+  const to = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+  return { from_date: from, to_date: to };
+}
 
 const COLUMNS = [
   { key: 'label', label: 'Día' },
@@ -24,40 +39,46 @@ const COLUMNS = [
 
 const Revenue = () => {
   const [period, setPeriod] = useState('mes');
+  const thisMonth = thisMonthRange();
+  const prevMonth = prevMonthRange();
 
-  const rows = D.dayRows.map((r) => ({ ...r, delta: ((r.cur - r.prev) / r.prev) * 100 }));
+  const { data: kpis } = useApi(() => api.kpis(thisMonth), []);
+  const { data: kpisPrev } = useApi(() => api.kpis(prevMonth), []);
+  const { data: revByDay } = useApi(() => api.revenueByDay(thisMonth), []);
+  const { data: paymentsData } = useApi(() => api.paymentMethodsBreakdown(thisMonth), []);
+
+  const revDelta =
+    kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
+  const ticketDelta =
+    kpis && kpisPrev?.avg_ticket ? ((kpis.avg_ticket - kpisPrev.avg_ticket) / kpisPrev.avg_ticket) * 100 : 0;
+
+  const chartData = useMemo(() => revByDay?.map((r) => r.revenue) ?? [], [revByDay]);
+  const chartLabels = useMemo(() => revByDay?.map((r) => `Día ${new Date(r.date).getDate()}`) ?? [], [revByDay]);
+  const payments = paymentsData ?? [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
       <div className="z-kpi-grid">
         <StatCard
           label="Ingresos del mes"
-          value={D.money(D.totals.revMonth)}
+          value={kpis ? money(kpis.revenue) : '—'}
           delta={revDelta}
           caption="vs mes anterior"
           icon="TrendingUp"
-          spark={D.series(51, 12, 60000, 20000, 1400)}
+          spark={chartData}
           sparkColor="var(--chart-1)"
         />
         <StatCard
           label="Ticket promedio"
-          value={D.money(D.totals.avgTicket)}
+          value={kpis ? money(kpis.avg_ticket) : '—'}
           delta={ticketDelta}
           caption="vs mes anterior"
           icon="DollarSign"
-          spark={D.series(52, 12, 120, 20, 1)}
+          spark={[]}
           sparkColor="var(--chart-2)"
         />
-        <StatCard
-          label="Mejor día"
-          value={D.money(9200)}
-          delta={9.5}
-          caption="Sábado"
-          icon="Star"
-          spark={D.series(53, 12, 7000, 2000, 100)}
-          sparkColor="var(--chart-3)"
-        />
-        <StatCard label="Meta mensual" value="87%" delta={4.2} caption="$78.5k de $90k" icon="Target" />
+        <StatCard label="Mejor día" value="—" caption="sin datos" icon="Star" />
+        <StatCard label="Meta mensual" value="—" caption="sin configurar" icon="Target" />
       </div>
 
       <div className="z-2col-wide">
@@ -84,60 +105,29 @@ const Revenue = () => {
             ]}
             style={{ marginBottom: 14 }}
           />
-          <AreaChart
-            data={D.revToday}
-            compare={D.revPrev}
-            labels={D.revToday.map((_, i) => `Día ${i + 1}`)}
-            yFormat={D.moneyK}
-            height={220}
-          />
+          <AreaChart data={chartData} labels={chartLabels} yFormat={moneyK} height={220} />
         </Card>
 
         <Card eyebrow="Distribución" title="Por categoría">
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
             <Donut
-              data={D.categories}
+              data={[]}
               size={160}
               thickness={22}
-              centerValue={D.moneyK(D.totals.revMonth)}
+              centerValue={kpis ? moneyK(kpis.revenue) : '—'}
               centerLabel="total"
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {D.categories.map((cat) => (
-              <div key={cat.name}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 3,
-                        background: cat.color,
-                        display: 'inline-block',
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span
-                      style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}
-                    >
-                      {cat.name}
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 'var(--text-sm)',
-                      fontWeight: 'var(--fw-semibold)',
-                      color: 'var(--text-heading)',
-                    }}
-                  >
-                    {D.money(cat.rev)}
-                  </span>
-                </div>
-                <ProgressBar ratio={cat.pct} color={cat.color} height={5} />
-              </div>
-            ))}
+          <div
+            style={{
+              padding: '12px 0',
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            Sin datos por categoría
           </div>
         </Card>
       </div>
@@ -151,48 +141,77 @@ const Revenue = () => {
             ]}
             style={{ marginBottom: 14 }}
           />
-          <GroupedBars data={D.weekCompare} height={200} yFormat={D.moneyK} />
+          <GroupedBars data={[]} height={200} yFormat={moneyK} />
         </Card>
 
         <Card eyebrow="Pagos" title="Métodos de pago">
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-            <Donut data={D.payments.map((p) => ({ value: p.pct, color: p.color }))} size={130} thickness={18} />
+            <Donut
+              data={payments.map((p, i) => ({
+                value: p.percentage ?? p.pct ?? 0,
+                color: `var(--chart-${(i % 5) + 1})`,
+              }))}
+              size={130}
+              thickness={18}
+            />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {D.payments.map((p) => (
-              <div key={p.name}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {payments.length ? (
+              payments.map((p, i) => (
+                <div key={p.method_name ?? p.name ?? i}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 3,
+                          background: `var(--chart-${(i % 5) + 1})`,
+                          display: 'inline-block',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 'var(--text-sm)',
+                          color: 'var(--text-body)',
+                        }}
+                      >
+                        {p.method_name ?? p.name ?? '—'}
+                      </span>
+                    </div>
                     <span
                       style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 3,
-                        background: p.color,
-                        display: 'inline-block',
-                        flexShrink: 0,
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 'var(--fw-semibold)',
+                        color: 'var(--text-heading)',
                       }}
-                    />
-                    <span
-                      style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}
                     >
-                      {p.name}
+                      {Math.round((p.percentage ?? p.pct ?? 0) * 100)}%
                     </span>
                   </div>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 'var(--text-sm)',
-                      fontWeight: 'var(--fw-semibold)',
-                      color: 'var(--text-heading)',
-                    }}
-                  >
-                    {Math.round(p.pct * 100)}%
-                  </span>
+                  <ProgressBar
+                    ratio={p.percentage ?? p.pct ?? 0}
+                    color={`var(--chart-${(i % 5) + 1})`}
+                    height={5}
+                  />
                 </div>
-                <ProgressBar ratio={p.pct} color={p.color} height={5} />
+              ))
+            ) : (
+              <div
+                style={{
+                  padding: '12px 0',
+                  textAlign: 'center',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-sm)',
+                }}
+              >
+                Sin datos de pagos
               </div>
-            ))}
+            )}
           </div>
         </Card>
       </div>
@@ -200,9 +219,9 @@ const Revenue = () => {
       <Card eyebrow="Detalle" title="Ingresos por día de la semana">
         <DataTable
           columns={COLUMNS}
-          rows={rows}
+          rows={[]}
           renderCell={(row, key) => {
-            if (key === 'cur' || key === 'prev') return D.money(row[key]);
+            if (key === 'cur' || key === 'prev') return money(row[key]);
             if (key === 'delta') return <DeltaBadge value={row.delta} format="percent" size="sm" />;
             return row[key];
           }}
