@@ -42,5 +42,4 @@ export const api = {
   updateBusinessHours: (data) => put('/business-hours', data),
   userProfile: () => get('/me'),
   updateUserProfile: (data) => put('/me', data),
-  changePassword: (data) => put('/me/password', data),
 };

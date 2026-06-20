@@ -10,13 +10,23 @@ import SegmentedControl from '../components/ui/segmented-control';
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 
-const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+// day_id: 0=Sunday … 6=Saturday (same as DB and AgendaPro)
+const DAYS = [
+  { name: 'Lunes', day_id: 1 },
+  { name: 'Martes', day_id: 2 },
+  { name: 'Miércoles', day_id: 3 },
+  { name: 'Jueves', day_id: 4 },
+  { name: 'Viernes', day_id: 5 },
+  { name: 'Sábado', day_id: 6 },
+  { name: 'Domingo', day_id: 0 },
+];
 
-const DEFAULT_SCHEDULE = DAYS.map((day, i) => ({
-  day,
-  open: i < 6,
-  from: i === 5 ? '10:00' : '09:00',
-  to: i === 5 ? '18:00' : '19:00',
+const DEFAULT_SCHEDULE = DAYS.map(({ name, day_id }) => ({
+  day: name,
+  day_id,
+  open: day_id !== 0,
+  from: day_id === 6 ? '10:00' : '09:00',
+  to: day_id === 6 ? '18:00' : '19:00',
 }));
 
 async function save(setStatus, fn) {
@@ -147,11 +157,11 @@ const Settings = () => {
   useEffect(() => {
     if (!spaData) return;
     setSpa({
-      nombre: spaData.nombre ?? spaData.name ?? '',
-      telefono: spaData.telefono ?? spaData.phone ?? '',
+      nombre: spaData.name ?? '',
+      telefono: spaData.phone ?? '',
       email: spaData.email ?? '',
-      web: spaData.web ?? spaData.website ?? '',
-      direccion: spaData.direccion ?? spaData.address ?? '',
+      web: spaData.website ?? '',
+      direccion: spaData.address ?? '',
     });
   }, [spaData]);
 
@@ -166,37 +176,48 @@ const Settings = () => {
       })
     );
 
-  /* schedule */
+  /* schedule — maps API day_id → row */
   const [schedule, setSchedule] = useState(DEFAULT_SCHEDULE);
   const [scheduleStatus, setScheduleStatus] = useState(null);
   const { data: hoursData } = useApi(() => api.businessHours(), []);
 
   useEffect(() => {
-    if (!hoursData) return;
+    if (!hoursData || !hoursData.length) return;
+    const byDayId = Object.fromEntries(hoursData.map((h) => [h.day_id, h]));
     setSchedule(
-      DAYS.map((day, i) => {
-        const row = hoursData.find((h) => h.day === day || h.day_name === day);
-        return row
-          ? {
-              day,
-              open: row.open ?? row.is_open ?? true,
-              from: row.from ?? row.open_time ?? '09:00',
-              to: row.to ?? row.close_time ?? '19:00',
-            }
-          : DEFAULT_SCHEDULE[i];
+      DEFAULT_SCHEDULE.map((row) => {
+        const h = byDayId[row.day_id];
+        if (!h) return row;
+        return {
+          ...row,
+          open: h.is_open,
+          from: h.open_time ? String(h.open_time).slice(0, 5) : row.from,
+          to: h.close_time ? String(h.close_time).slice(0, 5) : row.to,
+        };
       })
     );
   }, [hoursData]);
 
   const updateDay = (i, patch) => setSchedule((s) => s.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
-  const saveSchedule = () => save(setScheduleStatus, () => api.updateBusinessHours(schedule));
+  const saveSchedule = () =>
+    save(setScheduleStatus, () =>
+      api.updateBusinessHours(
+        schedule.map((row) => ({
+          day_id: row.day_id,
+          day_name: row.day,
+          is_open: row.open,
+          open_time: row.open ? row.from : null,
+          close_time: row.open ? row.to : null,
+        }))
+      )
+    );
 
   /* staff */
   const { data: profData } = useApi(() => api.professionals(), []);
   const staff = profData ?? [];
 
-  /* profile */
+  /* profile (owner — stored in business_profile.owner_* fields) */
   const [profile, setProfile] = useState({ nombre: '', apellido: '', email: '', telefono: '' });
   const [profileStatus, setProfileStatus] = useState(null);
   const { data: profileData } = useApi(() => api.userProfile(), []);
@@ -204,10 +225,10 @@ const Settings = () => {
   useEffect(() => {
     if (!profileData) return;
     setProfile({
-      nombre: profileData.first_name ?? profileData.nombre ?? '',
-      apellido: profileData.last_name ?? profileData.apellido ?? '',
+      nombre: profileData.first_name ?? '',
+      apellido: profileData.last_name ?? '',
       email: profileData.email ?? '',
-      telefono: profileData.phone ?? profileData.telefono ?? '',
+      telefono: profileData.phone ?? '',
     });
   }, [profileData]);
 
@@ -220,26 +241,6 @@ const Settings = () => {
         phone: profile.telefono,
       })
     );
-
-  /* password */
-  const [pwd, setPwd] = useState({ current: '', nuevo: '', confirm: '' });
-  const [pwdStatus, setPwdStatus] = useState(null);
-  const [pwdError, setPwdError] = useState('');
-
-  const savePassword = () => {
-    if (pwd.nuevo !== pwd.confirm) {
-      setPwdError('Las contraseñas no coinciden');
-      return;
-    }
-    if (pwd.nuevo.length < 8) {
-      setPwdError('Mínimo 8 caracteres');
-      return;
-    }
-    setPwdError('');
-    save(setPwdStatus, () => api.changePassword({ current_password: pwd.current, new_password: pwd.nuevo })).then(() =>
-      setPwd({ current: '', nuevo: '', confirm: '' })
-    );
-  };
 
   /* preferences */
   const [currency, setCurrency] = useState('MXN');
@@ -477,41 +478,6 @@ const Settings = () => {
               />
             </div>
             <SaveRow status={profileStatus} onSave={saveProfile} />
-          </Card>
-
-          <Card eyebrow="Seguridad" title="Contraseña y acceso">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <FieldRow
-                label="Contraseña actual"
-                value={pwd.current}
-                onChange={(v) => setPwd((p) => ({ ...p, current: v }))}
-                type="password"
-              />
-              <FieldRow
-                label="Nueva contraseña"
-                value={pwd.nuevo}
-                onChange={(v) => setPwd((p) => ({ ...p, nuevo: v }))}
-                type="password"
-              />
-              <FieldRow
-                label="Confirmar nueva contraseña"
-                value={pwd.confirm}
-                onChange={(v) => setPwd((p) => ({ ...p, confirm: v }))}
-                type="password"
-              />
-              {pwdError && (
-                <span
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 'var(--text-sm)',
-                    color: 'var(--red-600)',
-                  }}
-                >
-                  {pwdError}
-                </span>
-              )}
-              <SaveRow status={pwdStatus} label="Cambiar contraseña" onSave={savePassword} />
-            </div>
           </Card>
         </div>
       )}
