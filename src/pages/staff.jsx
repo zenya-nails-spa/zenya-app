@@ -15,13 +15,6 @@ const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
 const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
-function thisMonthRange() {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const to = now.toISOString().slice(0, 10);
-  return { from_date: from, to_date: to };
-}
-
 const COLUMNS = [
   { key: 'name', label: 'Empleada' },
   { key: 'role', label: 'Rol' },
@@ -32,9 +25,9 @@ const COLUMNS = [
   { key: 'utilization', label: 'Utilización', align: 'right' },
 ];
 
-const Staff = () => {
-  const thisMonth = thisMonthRange();
-  const { data: staffData } = useApi(() => api.staffPerformance(thisMonth), []);
+const Staff = ({ dateRange }) => {
+  const deps = [dateRange.from_date, dateRange.to_date];
+  const { data: staffData } = useApi(() => api.staffPerformance(dateRange), deps);
 
   const staff = useMemo(
     () =>

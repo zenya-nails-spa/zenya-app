@@ -15,20 +15,6 @@ import DeltaBadge from '../components/ui/delta-badge';
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
 
-function thisMonthRange() {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const to = now.toISOString().slice(0, 10);
-  return { from_date: from, to_date: to };
-}
-
-function prevMonthRange() {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
-  const to = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
-  return { from_date: from, to_date: to };
-}
-
 const COLUMNS = [
   { key: 'label', label: 'Día' },
   { key: 'cur', label: 'Este mes', align: 'right' },
@@ -37,15 +23,16 @@ const COLUMNS = [
   { key: 'appts', label: 'Citas', align: 'right' },
 ];
 
-const Revenue = () => {
+const Revenue = ({ dateRange, prevDateRange }) => {
   const [period, setPeriod] = useState('mes');
-  const thisMonth = thisMonthRange();
-  const prevMonth = prevMonthRange();
 
-  const { data: kpis } = useApi(() => api.kpis(thisMonth), []);
-  const { data: kpisPrev } = useApi(() => api.kpis(prevMonth), []);
-  const { data: revByDay } = useApi(() => api.revenueByDay(thisMonth), []);
-  const { data: paymentsData } = useApi(() => api.paymentMethodsBreakdown(thisMonth), []);
+  const deps = [dateRange.from_date, dateRange.to_date];
+  const prevDeps = [prevDateRange.from_date, prevDateRange.to_date];
+
+  const { data: kpis } = useApi(() => api.kpis(dateRange), deps);
+  const { data: kpisPrev } = useApi(() => api.kpis(prevDateRange), prevDeps);
+  const { data: revByDay } = useApi(() => api.revenueByDay(dateRange), deps);
+  const { data: paymentsData } = useApi(() => api.paymentMethodsBreakdown(dateRange), deps);
 
   const revDelta = kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
   const ticketDelta =
