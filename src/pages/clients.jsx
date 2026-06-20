@@ -16,9 +16,10 @@ const CLIENT_COLS = [
   { key: 'phone', label: 'Teléfono' },
 ];
 
-const Clients = () => {
+const Clients = ({ dateRange }) => {
   const [search, setSearch] = useState('');
-  const { data: kpis } = useApi(() => api.kpis(), []);
+  const deps = [dateRange.from_date, dateRange.to_date];
+  const { data: kpis } = useApi(() => api.kpis(dateRange), deps);
   const { data: clients, loading } = useApi(() => api.clients({ search: search || undefined, limit: 100 }), [search]);
 
   const totalClients = kpis?.new_clients ?? 0;

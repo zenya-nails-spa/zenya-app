@@ -14,31 +14,18 @@ const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
 const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
-function thisMonthRange() {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const to = now.toISOString().slice(0, 10);
-  return { from_date: from, to_date: to };
-}
-
-function prevMonthRange() {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
-  const to = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
-  return { from_date: from, to_date: to };
-}
-
-const Overview = () => {
+const Overview = ({ dateRange, prevDateRange }) => {
   const [period, setPeriod] = useState('mes');
-  const thisMonth = thisMonthRange();
-  const prevMonth = prevMonthRange();
 
-  const { data: kpis } = useApi(() => api.kpis(thisMonth), []);
-  const { data: kpisPrev } = useApi(() => api.kpis(prevMonth), []);
-  const { data: revByDay } = useApi(() => api.revenueByDay(thisMonth), []);
-  const { data: topServices } = useApi(() => api.topServices({ ...thisMonth, limit: 5 }), []);
-  const { data: staffData } = useApi(() => api.staffPerformance(thisMonth), []);
-  const { data: recentBookings } = useApi(() => api.bookings({ ...thisMonth, limit: 6 }), []);
+  const deps = [dateRange.from_date, dateRange.to_date];
+  const prevDeps = [prevDateRange.from_date, prevDateRange.to_date];
+
+  const { data: kpis } = useApi(() => api.kpis(dateRange), deps);
+  const { data: kpisPrev } = useApi(() => api.kpis(prevDateRange), prevDeps);
+  const { data: revByDay } = useApi(() => api.revenueByDay(dateRange), deps);
+  const { data: topServices } = useApi(() => api.topServices({ ...dateRange, limit: 5 }), deps);
+  const { data: staffData } = useApi(() => api.staffPerformance(dateRange), deps);
+  const { data: recentBookings } = useApi(() => api.bookings({ ...dateRange, limit: 6 }), deps);
 
   const revDelta = kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
   const apptDelta =
@@ -58,10 +45,10 @@ const Overview = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
       <div className="z-kpi-grid">
         <StatCard
-          label="Ingresos del mes"
+          label="Ingresos"
           value={kpis ? money(kpis.revenue) : '—'}
           delta={revDelta}
-          caption="vs mes anterior"
+          caption="vs periodo anterior"
           icon="TrendingUp"
           spark={chartData}
           sparkColor="var(--chart-1)"
@@ -70,7 +57,7 @@ const Overview = () => {
           label="Citas completadas"
           value={kpis ? kpis.bookings_count.toLocaleString('es-MX') : '—'}
           delta={apptDelta}
-          caption="vs mes anterior"
+          caption="vs periodo anterior"
           icon="Calendar"
           spark={[]}
           sparkColor="var(--chart-2)"
@@ -79,7 +66,7 @@ const Overview = () => {
           label="Ticket promedio"
           value={kpis ? money(kpis.avg_ticket) : '—'}
           delta={ticketDelta}
-          caption="vs mes anterior"
+          caption="vs periodo anterior"
           icon="DollarSign"
           spark={[]}
           sparkColor="var(--chart-3)"
@@ -97,7 +84,7 @@ const Overview = () => {
       <div className="z-2col-wide">
         <Card
           eyebrow="Ingresos"
-          title="Tendencia del mes"
+          title="Tendencia del periodo"
           action={
             <SegmentedControl
               options={[
@@ -112,7 +99,7 @@ const Overview = () => {
           }
         >
           <LegendRow
-            items={[{ label: 'Este mes', color: 'var(--chart-1)', line: true }]}
+            items={[{ label: 'Periodo seleccionado', color: 'var(--chart-1)', line: true }]}
             style={{ marginBottom: 14 }}
           />
           <AreaChart data={chartData} labels={chartLabels} yFormat={moneyK} height={210} />
@@ -254,7 +241,11 @@ const Overview = () => {
                     {money(s.revenue)}
                   </div>
                   <div
-                    style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 'var(--text-xs)',
+                      color: 'var(--text-muted)',
+                    }}
                   >
                     {s.bookings} citas
                   </div>

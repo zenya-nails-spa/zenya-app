@@ -18,13 +18,6 @@ const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Mat
 const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 const MONTHS = ['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
-function thisMonthRange() {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const to = now.toISOString().slice(0, 10);
-  return { from_date: from, to_date: to };
-}
-
 const COLUMNS = [
   { key: 'name', label: 'Servicio' },
   { key: 'cat', label: 'Categoría' },
@@ -36,11 +29,11 @@ const COLUMNS = [
   { key: 'spark', label: 'Últimos 12m', align: 'right' },
 ];
 
-const Services = () => {
+const Services = ({ dateRange }) => {
   const [catFilter, setCatFilter] = useState('Todos');
-  const thisMonth = thisMonthRange();
 
-  const { data: rawTopServices } = useApi(() => api.topServices({ ...thisMonth, limit: 20 }), []);
+  const deps = [dateRange.from_date, dateRange.to_date];
+  const { data: rawTopServices } = useApi(() => api.topServices({ ...dateRange, limit: 20 }), deps);
 
   const services = useMemo(
     () =>

@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { PanelLeftClose, PanelLeftOpen, Menu, Search, Bell, Plus } from 'lucide-react';
 
 import Sidebar from './components/layout/sidebar';
 import SectionTitle from './components/widgets/section-title';
 import Button from './components/ui/button';
 import IconButton from './components/ui/icon-button';
-import Select from './components/ui/select';
+import DateRangePicker from './components/ui/date-range-picker';
 import { SkeletonCard } from './components/ui/skeleton';
 
 import Overview from './pages/overview';
@@ -36,14 +36,6 @@ const PAGE_META = {
   settings: { eyebrow: 'Configuración', title: 'Ajustes', subtitle: 'Personaliza tu espacio de trabajo' },
 };
 
-const RANGE_OPTIONS = [
-  { value: 'today', label: 'Hoy' },
-  { value: 'week', label: 'Esta semana' },
-  { value: 'month', label: 'Este mes' },
-  { value: 'quarter', label: 'Este trimestre' },
-  { value: 'year', label: 'Este año' },
-];
-
 const HIDE_RANGE = new Set(['settings', 'appointments']);
 
 const PAGE_MAP = {
@@ -55,6 +47,26 @@ const PAGE_MAP = {
   appointments: Appointments,
   settings: SettingsPage,
 };
+
+function initialRange() {
+  const now = new Date();
+  return {
+    from_date: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10),
+    to_date: now.toISOString().slice(0, 10),
+  };
+}
+
+function computePrevRange(from_date, to_date) {
+  const fromMs = new Date(from_date).getTime();
+  const toMs = new Date(to_date).getTime();
+  const numDays = Math.round((toMs - fromMs) / 86400000) + 1;
+  const prevTo = new Date(fromMs - 86400000);
+  const prevFrom = new Date(prevTo.getTime() - (numDays - 1) * 86400000);
+  return {
+    from_date: prevFrom.toISOString().slice(0, 10),
+    to_date: prevTo.toISOString().slice(0, 10),
+  };
+}
 
 const LoadingScreen = () => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -79,7 +91,12 @@ const App = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [range, setRange] = useState('month');
+  const [dateRange, setDateRange] = useState(initialRange);
+
+  const prevDateRange = useMemo(
+    () => computePrevRange(dateRange.from_date, dateRange.to_date),
+    [dateRange.from_date, dateRange.to_date]
+  );
 
   const meta = PAGE_META[active] || PAGE_META.overview;
   const PageComponent = PAGE_MAP[active] || Overview;
@@ -151,7 +168,7 @@ const App = () => {
 
             <div className="z-topbar-actions">
               {!HIDE_RANGE.has(active) && (
-                <Select value={range} onChange={setRange} options={RANGE_OPTIONS} size="sm" className="z-hide-sm" />
+                <DateRangePicker value={dateRange} onChange={setDateRange} className="z-hide-sm" />
               )}
               <IconButton icon={Search} variant="ghost" size="md" shape="rounded" title="Buscar" />
               <div style={{ position: 'relative' }}>
@@ -175,7 +192,7 @@ const App = () => {
             </div>
           </div>
 
-          {loading ? <LoadingScreen /> : <PageComponent />}
+          {loading ? <LoadingScreen /> : <PageComponent dateRange={dateRange} prevDateRange={prevDateRange} />}
         </div>
       </main>
     </div>
