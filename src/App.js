@@ -22,7 +22,7 @@ const NAV = [
   { id: 'services', label: 'Servicios', icon: 'Sparkles' },
   { id: 'staff', label: 'Personal', icon: 'Users' },
   { id: 'clients', label: 'Clientas', icon: 'Heart' },
-  { id: 'appointments', label: 'Citas', icon: 'Calendar', badge: '8' },
+  { id: 'appointments', label: 'Citas', icon: 'Calendar' },
   { id: 'settings', label: 'Ajustes', icon: 'Settings' },
 ];
 

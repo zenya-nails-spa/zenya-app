@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import D from '../mocks/data';
+import { useState, useMemo } from 'react';
+import { api } from '../lib/api';
+import { useApi } from '../hooks/use-api';
 import StatCard from '../components/widgets/stat-card';
 import Card from '../components/ui/card';
 import RankRow from '../components/widgets/rank-row';
@@ -12,8 +13,17 @@ import DeltaBadge from '../components/ui/delta-badge';
 import LegendRow from '../components/ui/legend-row';
 import SegmentedControl from '../components/ui/segmented-control';
 
-const maxRev = Math.max(...D.services.map((s) => s.rev));
+const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
+const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
+const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 const MONTHS = ['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+
+function thisMonthRange() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const to = now.toISOString().slice(0, 10);
+  return { from_date: from, to_date: to };
+}
 
 const COLUMNS = [
   { key: 'name', label: 'Servicio' },
@@ -28,38 +38,64 @@ const COLUMNS = [
 
 const Services = () => {
   const [catFilter, setCatFilter] = useState('Todos');
-  const cats = ['Todos', ...Array.from(new Set(D.services.map((s) => s.cat)))];
-  const filtered = catFilter === 'Todos' ? D.services : D.services.filter((s) => s.cat === catFilter);
+  const thisMonth = thisMonthRange();
 
-  const topRev = D.services.reduce((a, b) => (a.rev > b.rev ? a : b));
-  const topCount = D.services.reduce((a, b) => (a.count > b.count ? a : b));
-  const topAvg = D.services.reduce((a, b) => (a.avg > b.avg ? a : b));
-  const topTrend = D.services.reduce((a, b) => (a.trend > b.trend ? a : b));
+  const { data: rawTopServices } = useApi(() => api.topServices({ ...thisMonth, limit: 20 }), []);
+
+  const services = useMemo(
+    () =>
+      (rawTopServices ?? []).map((s) => ({
+        name: s.name ?? s.service_name ?? '—',
+        cat: s.category ?? '—',
+        provider: s.provider ?? '—',
+        rev: s.revenue ?? 0,
+        count: s.count ?? s.bookings_count ?? 0,
+        avg: s.count ? Math.round((s.revenue ?? 0) / s.count) : 0,
+        trend: s.trend ?? 0,
+        spark: [],
+      })),
+    [rawTopServices]
+  );
+
+  const maxRev = services.length ? Math.max(...services.map((s) => s.rev)) : 1;
+  const maxCount = services.length ? Math.max(...services.map((s) => s.count)) : 1;
+  const cats = ['Todos', ...Array.from(new Set(services.map((s) => s.cat).filter((c) => c !== '—')))];
+  const filtered = catFilter === 'Todos' ? services : services.filter((s) => s.cat === catFilter);
+
+  const topRev = services.length ? services.reduce((a, b) => (a.rev > b.rev ? a : b)) : null;
+  const topCount = services.length ? services.reduce((a, b) => (a.count > b.count ? a : b)) : null;
+  const topAvg = services.length ? services.reduce((a, b) => (a.avg > b.avg ? a : b)) : null;
+  const topTrend = services.length ? services.reduce((a, b) => (a.trend > b.trend ? a : b)) : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
       <div className="z-kpi-grid">
         <StatCard
           label="Servicio top"
-          value={topRev.name}
-          delta={topRev.trend}
-          caption={D.money(topRev.rev)}
+          value={topRev?.name ?? '—'}
+          delta={topRev?.trend ?? 0}
+          caption={topRev ? money(topRev.rev) : '—'}
           icon="Sparkles"
           numeralStyle="sans"
         />
-        <StatCard label="Más demandado" value={`${topCount.count} citas`} caption={topCount.name} icon="Calendar" />
+        <StatCard
+          label="Más demandado"
+          value={topCount ? `${topCount.count} citas` : '—'}
+          caption={topCount?.name ?? '—'}
+          icon="Calendar"
+        />
         <StatCard
           label="Mayor ticket"
-          value={D.money(topAvg.avg)}
-          delta={topAvg.trend}
-          caption={topAvg.name}
+          value={topAvg ? money(topAvg.avg) : '—'}
+          delta={topAvg?.trend ?? 0}
+          caption={topAvg?.name ?? '—'}
           icon="DollarSign"
         />
         <StatCard
           label="Mayor crecimiento"
-          value={`+${topTrend.trend}%`}
-          delta={topTrend.trend}
-          caption={topTrend.name}
+          value={topTrend ? `+${topTrend.trend}%` : '—'}
+          delta={topTrend?.trend ?? 0}
+          caption={topTrend?.name ?? '—'}
           icon="TrendingUp"
         />
       </div>
@@ -67,13 +103,13 @@ const Services = () => {
       <div className="z-2col">
         <Card eyebrow="Ingresos" title="Por servicio">
           <BarChart
-            data={D.services.map((s, i) => ({
+            data={services.map((s, i) => ({
               label: s.name.split(' ')[0],
               value: s.rev,
-              color: D.CHART[i % D.CHART.length],
+              color: CHART[i % CHART.length],
             }))}
             height={220}
-            yFormat={D.moneyK}
+            yFormat={moneyK}
           />
         </Card>
 
@@ -82,50 +118,50 @@ const Services = () => {
           title="Top servicios"
           action={
             <LegendRow
-              items={D.services
+              items={services
                 .slice(0, 3)
-                .map((s, i) => ({ label: s.name.split(' ')[0], color: D.CHART[i], line: true }))}
+                .map((s, i) => ({ label: s.name.split(' ')[0], color: CHART[i], line: true }))}
             />
           }
         >
           <MultiLine
-            series={D.services.slice(0, 3).map((s, i) => ({ data: s.spark, color: D.CHART[i] }))}
+            series={services.slice(0, 3).map((s, i) => ({ data: s.spark, color: CHART[i] }))}
             labels={MONTHS}
             height={220}
-            yFormat={D.moneyK}
+            yFormat={moneyK}
           />
         </Card>
       </div>
 
       <div className="z-2col">
         <Card eyebrow="Ranking" title="Por ingresos">
-          {D.services.map((s, i) => (
+          {services.map((s, i) => (
             <RankRow
               key={s.name}
               rank={i + 1}
               label={s.name}
               sublabel={s.cat}
-              value={D.money(s.rev)}
+              value={money(s.rev)}
               ratio={s.rev / maxRev}
-              color={D.CHART[i % D.CHART.length]}
-              last={i === D.services.length - 1}
+              color={CHART[i % CHART.length]}
+              last={i === services.length - 1}
             />
           ))}
         </Card>
 
         <Card eyebrow="Ranking" title="Por cantidad">
-          {[...D.services]
+          {[...services]
             .sort((a, b) => b.count - a.count)
             .map((s, i) => (
               <RankRow
                 key={s.name}
                 rank={i + 1}
                 label={s.name}
-                sublabel={`${s.count} citas · ${D.money(s.avg)} avg`}
+                sublabel={`${s.count} citas · ${money(s.avg)} avg`}
                 value={`${s.count}`}
-                ratio={s.count / Math.max(...D.services.map((x) => x.count))}
-                color={D.CHART[i % D.CHART.length]}
-                last={i === D.services.length - 1}
+                ratio={s.count / maxCount}
+                color={CHART[i % CHART.length]}
+                last={i === services.length - 1}
               />
             ))}
         </Card>
@@ -147,8 +183,8 @@ const Services = () => {
           columns={COLUMNS}
           rows={filtered}
           renderCell={(row, key) => {
-            if (key === 'rev') return D.money(row.rev);
-            if (key === 'avg') return D.money(row.avg);
+            if (key === 'rev') return money(row.rev);
+            if (key === 'avg') return money(row.avg);
             if (key === 'cat') return <Badge tone="lavender">{row.cat}</Badge>;
             if (key === 'trend') return <DeltaBadge value={row.trend} format="percent" size="sm" />;
             if (key === 'spark') return <Sparkline data={row.spark} width={72} height={24} color="var(--chart-1)" />;
