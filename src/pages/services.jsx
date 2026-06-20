@@ -118,9 +118,7 @@ const Services = () => {
           title="Top servicios"
           action={
             <LegendRow
-              items={services
-                .slice(0, 3)
-                .map((s, i) => ({ label: s.name.split(' ')[0], color: CHART[i], line: true }))}
+              items={services.slice(0, 3).map((s, i) => ({ label: s.name.split(' ')[0], color: CHART[i], line: true }))}
             />
           }
         >

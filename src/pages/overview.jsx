@@ -40,8 +40,7 @@ const Overview = () => {
   const { data: staffData } = useApi(() => api.staffPerformance(thisMonth), []);
   const { data: recentBookings } = useApi(() => api.bookings({ ...thisMonth, limit: 6 }), []);
 
-  const revDelta =
-    kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
+  const revDelta = kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
   const apptDelta =
     kpis && kpisPrev?.bookings_count
       ? ((kpis.bookings_count - kpisPrev.bookings_count) / kpisPrev.bookings_count) * 100
