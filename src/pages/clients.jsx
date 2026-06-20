@@ -47,13 +47,7 @@ const Clients = () => {
       <div className="z-2col">
         <Card eyebrow="Segmentación" title="Lealtad de clientas">
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-            <Donut
-              data={[]}
-              size={150}
-              thickness={20}
-              centerValue={totalClients || 0}
-              centerLabel="clientes"
-            />
+            <Donut data={[]} size={150} thickness={20} centerValue={totalClients || 0} centerLabel="clientes" />
             <div
               style={{
                 flex: 1,

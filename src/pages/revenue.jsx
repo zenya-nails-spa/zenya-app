@@ -47,8 +47,7 @@ const Revenue = () => {
   const { data: revByDay } = useApi(() => api.revenueByDay(thisMonth), []);
   const { data: paymentsData } = useApi(() => api.paymentMethodsBreakdown(thisMonth), []);
 
-  const revDelta =
-    kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
+  const revDelta = kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
   const ticketDelta =
     kpis && kpisPrev?.avg_ticket ? ((kpis.avg_ticket - kpisPrev.avg_ticket) / kpisPrev.avg_ticket) * 100 : 0;
 
@@ -192,11 +191,7 @@ const Revenue = () => {
                       {Math.round((p.percentage ?? p.pct ?? 0) * 100)}%
                     </span>
                   </div>
-                  <ProgressBar
-                    ratio={p.percentage ?? p.pct ?? 0}
-                    color={`var(--chart-${(i % 5) + 1})`}
-                    height={5}
-                  />
+                  <ProgressBar ratio={p.percentage ?? p.pct ?? 0} color={`var(--chart-${(i % 5) + 1})`} height={5} />
                 </div>
               ))
             ) : (
