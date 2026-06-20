@@ -1,10 +1,22 @@
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 const API_KEY = process.env.REACT_APP_API_KEY || 'dev-key';
 
+const HEADERS = { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' };
+
 async function get(path, params = {}) {
   const url = new URL(`${BASE_URL}${path}`);
   Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), { headers: { 'X-API-Key': API_KEY } });
+  const res = await fetch(url.toString(), { headers: HEADERS });
+  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  return res.json();
+}
+
+async function put(path, body) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'PUT',
+    headers: HEADERS,
+    body: JSON.stringify(body),
+  });
   if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
   return res.json();
 }
@@ -23,4 +35,12 @@ export const api = {
   services: () => get('/services'),
   products: () => get('/products'),
   paymentMethods: () => get('/payment-methods'),
+
+  businessProfile: () => get('/business-profile'),
+  updateBusinessProfile: (data) => put('/business-profile', data),
+  businessHours: () => get('/business-hours'),
+  updateBusinessHours: (data) => put('/business-hours', data),
+  userProfile: () => get('/me'),
+  updateUserProfile: (data) => put('/me', data),
+  changePassword: (data) => put('/me/password', data),
 };
