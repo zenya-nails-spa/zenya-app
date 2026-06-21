@@ -8,11 +8,72 @@ import RankRow from '../components/widgets/rank-row';
 import Avatar from '../components/ui/avatar';
 import LegendRow from '../components/ui/legend-row';
 import SegmentedControl from '../components/ui/segmented-control';
-import { Clock } from 'lucide-react';
+import { Clock, TrendingUp, TrendingDown, Sparkles, Award, Calendar, Heart } from 'lucide-react';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
 const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
+const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+const INSIGHT_COLORS = {
+  positive: { bg: 'var(--lavender-50)', fg: 'var(--green-600)' },
+  caution: { bg: 'var(--lavender-50)', fg: 'var(--amber-600)' },
+  neutral: { bg: 'var(--lavender-50)', fg: 'var(--lavender-500)' },
+};
+
+function computeInsights({ kpis, kpisPrev, topServices, staffData, revByDay }) {
+  const list = [];
+
+  if (kpis && kpisPrev?.revenue > 0) {
+    const delta = ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100;
+    const up = delta >= 0;
+    list.push({
+      Icon: up ? TrendingUp : TrendingDown,
+      tone: up ? 'positive' : 'caution',
+      text: `Los ingresos ${up ? 'subieron' : 'bajaron'} ${Math.abs(delta).toFixed(1)}% vs el periodo anterior`,
+    });
+  }
+
+  if (topServices?.length) {
+    const top = topServices[0];
+    list.push({
+      Icon: Sparkles,
+      tone: 'neutral',
+      text: `"${top.name}" fue el servicio top — ${money(top.revenue)} en ${top.count} citas`,
+    });
+  }
+
+  if (staffData?.length) {
+    const top = staffData[0];
+    const name = [top.first_name, top.last_name].filter(Boolean).join(' ') || `Profesional ${top.professional_id}`;
+    list.push({
+      Icon: Award,
+      tone: 'neutral',
+      text: `${name} lideró el equipo con ${money(top.revenue)} en el periodo`,
+    });
+  }
+
+  if (revByDay?.length) {
+    const best = revByDay.reduce((a, b) => (a.revenue > b.revenue ? a : b));
+    const weekday = WEEKDAYS[new Date(best.date + 'T12:00:00').getDay()];
+    list.push({
+      Icon: Calendar,
+      tone: 'neutral',
+      text: `Mejor día: ${weekday} ${best.date.slice(8)} con ${money(best.revenue)} en ventas`,
+    });
+  }
+
+  if (kpis?.distinct_clients > 0) {
+    const pct = Math.round((kpis.recurring_clients / kpis.distinct_clients) * 100);
+    list.push({
+      Icon: Heart,
+      tone: pct >= 50 ? 'positive' : 'neutral',
+      text: `${pct}% de las clientas del periodo son recurrentes (${kpis.recurring_clients} de ${kpis.distinct_clients})`,
+    });
+  }
+
+  return list;
+}
 
 const Overview = ({ dateRange, prevDateRange }) => {
   const [period, setPeriod] = useState('mes');
@@ -40,6 +101,10 @@ const Overview = ({ dateRange, prevDateRange }) => {
   const maxServiceRev = topServices?.length ? Math.max(...topServices.map((s) => s.revenue)) : 1;
   const bookings = recentBookings ?? [];
   const staff = staffData ?? [];
+  const insights = useMemo(
+    () => computeInsights({ kpis, kpisPrev, topServices, staffData, revByDay }),
+    [kpis, kpisPrev, topServices, staffData, revByDay]
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -186,17 +251,63 @@ const Overview = ({ dateRange, prevDateRange }) => {
         </Card>
 
         <Card eyebrow="Análisis" title="Insights">
-          <div
-            style={{
-              padding: '20px 0',
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 'var(--text-sm)',
-            }}
-          >
-            Sin insights disponibles
-          </div>
+          {insights.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {insights.map((ins, i) => {
+                const colors = INSIGHT_COLORS[ins.tone];
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 12,
+                      padding: '10px 0',
+                      borderBottom: i < insights.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 'var(--radius-sm)',
+                        background: colors.bg,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        marginTop: 1,
+                      }}
+                    >
+                      <ins.Icon size={14} strokeWidth={1.8} color={colors.fg} />
+                    </div>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--text-body)',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {ins.text}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div
+              style={{
+                padding: '20px 0',
+                textAlign: 'center',
+                color: 'var(--text-muted)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--text-sm)',
+              }}
+            >
+              Sin datos suficientes para generar insights
+            </div>
+          )}
         </Card>
       </div>
 
@@ -247,7 +358,7 @@ const Overview = ({ dateRange, prevDateRange }) => {
                       color: 'var(--text-muted)',
                     }}
                   >
-                    {s.bookings} citas
+                    {s.services_count ?? 0} citas
                   </div>
                 </div>
               </div>
