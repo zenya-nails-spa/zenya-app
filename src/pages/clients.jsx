@@ -24,10 +24,7 @@ const Clients = ({ dateRange }) => {
   const { data: kpis } = useApi(() => api.kpis(dateRange), deps);
   const { data: retention } = useApi(() => api.clientRetention(dateRange), deps);
   const { data: stats } = useApi(() => api.clientStats(dateRange), deps);
-  const { data: clients, loading } = useApi(
-    () => api.clients({ search: search || undefined, limit: 100 }),
-    [search],
-  );
+  const { data: clients, loading } = useApi(() => api.clients({ search: search || undefined, limit: 100 }), [search]);
 
   const newClients = retention?.new_clients ?? kpis?.new_clients ?? 0;
   const recurringClients = retention?.recurring_clients ?? kpis?.recurring_clients ?? 0;
@@ -78,13 +75,7 @@ const Clients = ({ dateRange }) => {
       <div className="z-2col">
         <Card eyebrow="Segmentación" title="Lealtad de clientas">
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-            <Donut
-              data={donutData}
-              size={150}
-              thickness={20}
-              centerValue={totalActive || 0}
-              centerLabel="activas"
-            />
+            <Donut data={donutData} size={150} thickness={20} centerValue={totalActive || 0} centerLabel="activas" />
             {donutData.length > 0 ? (
               <LegendRow
                 style={{ flexDirection: 'column', gap: 10 }}

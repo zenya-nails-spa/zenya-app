@@ -9,7 +9,6 @@ import Donut from '../components/charts/donut';
 import BarChart from '../components/charts/bar-chart';
 import DataTable from '../components/widgets/data-table';
 import Avatar from '../components/ui/avatar';
-import Badge from '../components/ui/badge';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
@@ -17,12 +16,10 @@ const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--char
 
 const COLUMNS = [
   { key: 'name', label: 'Empleada' },
-  { key: 'role', label: 'Rol' },
   { key: 'appts', label: 'Citas', align: 'right' },
   { key: 'clients', label: 'Clientas', align: 'right' },
+  { key: 'avg', label: 'Ticket prom.', align: 'right' },
   { key: 'rev', label: 'Ingresos', align: 'right' },
-  { key: 'rating', label: 'Rating', align: 'right' },
-  { key: 'utilization', label: 'Utilización', align: 'right' },
 ];
 
 const Staff = ({ dateRange }) => {
@@ -34,12 +31,10 @@ const Staff = ({ dateRange }) => {
       (staffData ?? []).map((s, i) => ({
         ...s,
         name: [s.first_name, s.last_name].filter(Boolean).join(' ') || `Profesional ${s.professional_id}`,
-        role: s.role ?? '—',
         rev: s.revenue ?? 0,
         appts: s.services_count ?? 0,
-        clients: s.clients_count ?? null,
-        rating: s.rating ?? '—',
-        utilization: s.utilization ?? 0,
+        clients: s.clients_count ?? 0,
+        avg: s.avg_ticket ?? 0,
         color: CHART[i % CHART.length],
       })),
     [staffData]
@@ -49,11 +44,6 @@ const Staff = ({ dateRange }) => {
   const totalRev = staff.reduce((acc, s) => acc + s.rev, 0);
   const totalAppts = staff.reduce((acc, s) => acc + s.appts, 0);
   const topStaff = staff[0] ?? null;
-
-  const ratedStaff = staff.filter((s) => s.rating !== '—' && !isNaN(Number(s.rating)));
-  const avgRating = ratedStaff.length
-    ? (ratedStaff.reduce((acc, s) => acc + Number(s.rating), 0) / ratedStaff.length).toFixed(1)
-    : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -68,22 +58,22 @@ const Staff = ({ dateRange }) => {
         <StatCard
           label="Ingresos equipo"
           value={totalRev ? money(totalRev) : '—'}
-          caption="este mes"
+          caption="en el periodo"
           icon="TrendingUp"
           spark={[]}
           sparkColor="var(--chart-1)"
         />
         <StatCard
-          label="Rating promedio"
-          value={avgRating ? `★ ${avgRating}` : '—'}
-          caption={avgRating ? 'promedio del equipo' : 'sin datos'}
-          icon="Star"
-        />
-        <StatCard
           label="Total citas"
           value={totalAppts ? totalAppts.toLocaleString('es-MX') : '—'}
-          caption="este mes"
+          caption="en el periodo"
           icon="Calendar"
+        />
+        <StatCard
+          label="Empleadas activas"
+          value={staff.length ? String(staff.length) : '—'}
+          caption="con ventas en el periodo"
+          icon="Users"
         />
       </div>
 
@@ -154,7 +144,7 @@ const Staff = ({ dateRange }) => {
             key={s.name}
             rank={i + 1}
             label={s.name}
-            sublabel={`${s.appts} citas`}
+            sublabel={`${s.appts} citas · ${s.clients} clientas`}
             value={money(s.rev)}
             ratio={s.rev / maxRev}
             color={s.color}
@@ -176,13 +166,7 @@ const Staff = ({ dateRange }) => {
                 </div>
               );
             if (key === 'rev') return money(row.rev);
-            if (key === 'rating') return row.rating !== '—' ? `★ ${row.rating}` : '—';
-            if (key === 'utilization')
-              return (
-                <Badge tone={row.utilization > 0.8 ? 'positive' : row.utilization > 0.6 ? 'caution' : 'neutral'}>
-                  {row.utilization ? `${Math.round(row.utilization * 100)}%` : '—'}
-                </Badge>
-              );
+            if (key === 'avg') return money(row.avg);
             return row[key] ?? '—';
           }}
         />
