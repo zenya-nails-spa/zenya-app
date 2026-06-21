@@ -1,10 +1,8 @@
 import { useState, useMemo } from 'react';
-import { PanelLeftClose, PanelLeftOpen, Menu, Search, Bell, Plus } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Menu } from 'lucide-react';
 
 import Sidebar from './components/layout/sidebar';
 import SectionTitle from './components/widgets/section-title';
-import Button from './components/ui/button';
-import IconButton from './components/ui/icon-button';
 import DateRangePicker from './components/ui/date-range-picker';
 import { SkeletonCard } from './components/ui/skeleton';
 
@@ -170,25 +168,6 @@ const App = () => {
               {!HIDE_RANGE.has(active) && (
                 <DateRangePicker value={dateRange} onChange={setDateRange} className="z-hide-sm" />
               )}
-              <IconButton icon={Search} variant="ghost" size="md" shape="rounded" title="Buscar" />
-              <div style={{ position: 'relative' }}>
-                <IconButton icon={Bell} variant="ghost" size="md" shape="rounded" title="Notificaciones" />
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: 5,
-                    right: 5,
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: 'var(--brand-primary)',
-                    border: '2px solid var(--surface-page)',
-                  }}
-                />
-              </div>
-              <Button variant="primary" size="sm" iconLeft={Plus} onClick={() => navigate('appointments')}>
-                Nueva venta
-              </Button>
             </div>
           </div>
 
