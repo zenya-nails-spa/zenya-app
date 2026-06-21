@@ -36,8 +36,8 @@ const Staff = ({ dateRange }) => {
         name: [s.first_name, s.last_name].filter(Boolean).join(' ') || `Profesional ${s.professional_id}`,
         role: s.role ?? '—',
         rev: s.revenue ?? 0,
-        appts: s.bookings ?? 0,
-        clients: s.clients_count ?? 0,
+        appts: s.services_count ?? 0,
+        clients: s.clients_count ?? null,
         rating: s.rating ?? '—',
         utilization: s.utilization ?? 0,
         color: CHART[i % CHART.length],
@@ -49,6 +49,11 @@ const Staff = ({ dateRange }) => {
   const totalRev = staff.reduce((acc, s) => acc + s.rev, 0);
   const totalAppts = staff.reduce((acc, s) => acc + s.appts, 0);
   const topStaff = staff[0] ?? null;
+
+  const ratedStaff = staff.filter((s) => s.rating !== '—' && !isNaN(Number(s.rating)));
+  const avgRating = ratedStaff.length
+    ? (ratedStaff.reduce((acc, s) => acc + Number(s.rating), 0) / ratedStaff.length).toFixed(1)
+    : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -68,7 +73,12 @@ const Staff = ({ dateRange }) => {
           spark={[]}
           sparkColor="var(--chart-1)"
         />
-        <StatCard label="Rating promedio" value="—" caption="sin datos" icon="Star" />
+        <StatCard
+          label="Rating promedio"
+          value={avgRating ? `★ ${avgRating}` : '—'}
+          caption={avgRating ? 'promedio del equipo' : 'sin datos'}
+          icon="Star"
+        />
         <StatCard
           label="Total citas"
           value={totalAppts ? totalAppts.toLocaleString('es-MX') : '—'}
