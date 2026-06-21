@@ -40,17 +40,14 @@ const Revenue = ({ dateRange, prevDateRange }) => {
   const { data: revByDayPrev } = useApi(() => api.revenueByDay(prevDateRange), prevDeps);
   const { data: paymentsData } = useApi(() => api.paymentMethodsBreakdown(dateRange), deps);
 
-  const revDelta =
-    kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
+  const revDelta = kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
   const ticketDelta =
-    kpis && kpisPrev?.avg_ticket
-      ? ((kpis.avg_ticket - kpisPrev.avg_ticket) / kpisPrev.avg_ticket) * 100
-      : 0;
+    kpis && kpisPrev?.avg_ticket ? ((kpis.avg_ticket - kpisPrev.avg_ticket) / kpisPrev.avg_ticket) * 100 : 0;
 
   const chartData = useMemo(() => revByDay?.map((r) => r.revenue) ?? [], [revByDay]);
   const chartLabels = useMemo(
     () => revByDay?.map((r) => `Día ${new Date(r.date + 'T00:00:00').getDate()}`) ?? [],
-    [revByDay],
+    [revByDay]
   );
 
   const bestDay = useMemo(() => {
