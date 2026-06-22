@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { PanelLeftClose, PanelLeftOpen, Menu } from 'lucide-react';
 
 import Sidebar from './components/layout/sidebar';
@@ -84,6 +84,14 @@ const LoadingScreen = () => (
   </div>
 );
 
+export function applyTheme(t) {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const dark = t === 'dark' || (t === 'auto' && prefersDark);
+  if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+  localStorage.setItem('zenya-theme', t);
+}
+
 const App = () => {
   const [active, setActive] = useState('overview');
   const [collapsed, setCollapsed] = useState(false);
@@ -95,6 +103,10 @@ const App = () => {
     () => computePrevRange(dateRange.from_date, dateRange.to_date),
     [dateRange.from_date, dateRange.to_date]
   );
+
+  useEffect(() => {
+    applyTheme(localStorage.getItem('zenya-theme') || 'light');
+  }, []);
 
   const meta = PAGE_META[active] || PAGE_META.overview;
   const PageComponent = PAGE_MAP[active] || Overview;
