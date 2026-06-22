@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { PanelLeftClose, PanelLeftOpen, Menu } from 'lucide-react';
 
+import { api } from './lib/api';
+import { useApi } from './hooks/use-api';
 import Sidebar from './components/layout/sidebar';
 import SectionTitle from './components/widgets/section-title';
 import DateRangePicker from './components/ui/date-range-picker';
@@ -108,6 +110,8 @@ const App = () => {
     applyTheme(localStorage.getItem('zenya-theme') || 'light');
   }, []);
 
+  const { data: ownerData } = useApi(() => api.userProfile(), []);
+
   const meta = PAGE_META[active] || PAGE_META.overview;
   const PageComponent = PAGE_MAP[active] || Overview;
 
@@ -129,6 +133,7 @@ const App = () => {
         collapsed={collapsed}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
+        owner={ownerData}
       />
 
       <main className="z-main">
