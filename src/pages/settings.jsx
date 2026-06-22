@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import D from '../mocks/data';
+import { useState, useEffect } from 'react';
+import { api } from '../lib/api';
+import { useApi } from '../hooks/use-api';
+import { applyTheme } from '../App';
 import Card from '../components/ui/card';
 import Button from '../components/ui/button';
 import Avatar from '../components/ui/avatar';
@@ -7,100 +9,121 @@ import Badge from '../components/ui/badge';
 import Select from '../components/ui/select';
 import SegmentedControl from '../components/ui/segmented-control';
 
-const Toggle = ({ checked, onChange, label }) => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
-    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>
-      {label}
-    </span>
-    <button
-      onClick={() => onChange(!checked)}
-      style={{
-        width: 42,
-        height: 24,
-        borderRadius: 12,
-        background: checked ? 'var(--brand-primary)' : 'var(--ink-200)',
-        border: 'none',
-        cursor: 'pointer',
-        position: 'relative',
-        transition: 'background var(--dur-fast) var(--ease-soft)',
-        flexShrink: 0,
-      }}
-    >
-      <span
-        style={{
-          position: 'absolute',
-          top: 2,
-          left: checked ? 20 : 2,
-          width: 20,
-          height: 20,
-          borderRadius: '50%',
-          background: 'var(--white)',
-          boxShadow: 'var(--shadow-xs)',
-          transition: 'left var(--dur-fast) var(--ease-soft)',
-        }}
-      />
-    </button>
+const inputStyle = {
+  height: 38,
+  padding: '0 12px',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 'var(--text-sm)',
+  color: 'var(--text-body)',
+  background: 'var(--surface-card)',
+  border: '1px solid var(--border-default)',
+  borderRadius: 'var(--radius-sm)',
+  outline: 'none',
+  width: '100%',
+};
+
+const labelStyle = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 'var(--text-xs)',
+  fontWeight: 'var(--fw-semibold)',
+  color: 'var(--text-secondary)',
+  letterSpacing: '0.02em',
+  display: 'block',
+  marginBottom: 5,
+};
+
+const Field = ({ label, value, onChange, type = 'text' }) => (
+  <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <label style={labelStyle}>{label}</label>
+    <input type={type} value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />
   </div>
 );
 
-const FieldRow = ({ label, value, type = 'text' }) => {
-  const [val, setVal] = useState(value || '');
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <label
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--text-xs)',
-          fontWeight: 'var(--fw-semibold)',
-          color: 'var(--text-secondary)',
-          letterSpacing: '0.02em',
-        }}
-      >
-        {label}
-      </label>
-      <input
-        type={type}
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        style={{
-          height: 38,
-          padding: '0 12px',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--text-sm)',
-          color: 'var(--text-body)',
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-sm)',
-          outline: 'none',
-        }}
-      />
-    </div>
-  );
+const SaveStatus = ({ status }) => {
+  if (!status) return null;
+  const map = {
+    saving: { color: 'var(--text-muted)', text: 'Guardando…' },
+    saved: { color: 'var(--green-600)', text: '✓ Guardado' },
+    error: { color: 'var(--red-500)', text: 'Error al guardar' },
+  };
+  const s = map[status];
+  return <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-xs)', color: s.color }}>{s.text}</span>;
 };
 
 const TABS = [
   { value: 'negocio', label: 'Negocio' },
   { value: 'cuenta', label: 'Cuenta' },
-  { value: 'notificaciones', label: 'Notificaciones' },
   { value: 'preferencias', label: 'Preferencias' },
 ];
 
 const Settings = () => {
   const [tab, setTab] = useState('negocio');
-  const [notifs, setNotifs] = useState({
-    newAppt: true,
-    cancelAppt: true,
-    payment: true,
-    reminder24: true,
-    reminder2h: false,
-    weekReport: true,
-    monthReport: true,
-    newClient: false,
-    reviews: true,
-  });
-  const [currency, setCurrency] = useState('MXN');
-  const [lang, setLang] = useState('es');
-  const [theme, setTheme] = useState('light');
+
+  const { data: bpData } = useApi(() => api.businessProfile(), []);
+  const [bp, setBp] = useState({ name: '', phone: '', email: '', website: '', address: '' });
+  const [bpStatus, setBpStatus] = useState(null);
+
+  useEffect(() => {
+    if (bpData) {
+      setBp({
+        name: bpData.name ?? '',
+        phone: bpData.phone ?? '',
+        email: bpData.email ?? '',
+        website: bpData.website ?? '',
+        address: bpData.address ?? '',
+      });
+    }
+  }, [bpData]);
+
+  const saveBp = async () => {
+    setBpStatus('saving');
+    try {
+      await api.updateBusinessProfile(bp);
+      setBpStatus('saved');
+      setTimeout(() => setBpStatus(null), 3000);
+    } catch {
+      setBpStatus('error');
+    }
+  };
+
+  const { data: meData } = useApi(() => api.userProfile(), []);
+  const [me, setMe] = useState({ first_name: '', last_name: '', email: '', phone: '' });
+  const [meStatus, setMeStatus] = useState(null);
+
+  useEffect(() => {
+    if (meData) {
+      setMe({
+        first_name: meData.first_name ?? '',
+        last_name: meData.last_name ?? '',
+        email: meData.email ?? '',
+        phone: meData.phone ?? '',
+      });
+    }
+  }, [meData]);
+
+  const saveMe = async () => {
+    setMeStatus('saving');
+    try {
+      await api.updateUserProfile(me);
+      setMeStatus('saved');
+      setTimeout(() => setMeStatus(null), 3000);
+    } catch {
+      setMeStatus('error');
+    }
+  };
+
+  const { data: profData } = useApi(() => api.professionals(), []);
+  const profs = (profData ?? []).map((p) => ({
+    ...p,
+    fullName: [p.first_name, p.last_name].filter(Boolean).join(' ') || `Profesional ${p.id}`,
+  }));
+
+  const [theme, setTheme] = useState(() => localStorage.getItem('zenya-theme') || 'light');
+
+  const handleTheme = (t) => {
+    setTheme(t);
+    applyTheme(t);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -112,16 +135,22 @@ const Settings = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card eyebrow="Negocio" title="Información del spa">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <FieldRow label="Nombre del negocio" value="Zenya Nails & Spa" />
-              <FieldRow label="Teléfono" value="+52 55 1234 5678" type="tel" />
-              <FieldRow label="Email de contacto" value="hola@zenya.mx" type="email" />
-              <FieldRow label="Sitio web" value="www.zenya.mx" />
+              <Field label="Nombre del negocio" value={bp.name} onChange={(v) => setBp({ ...bp, name: v })} />
+              <Field label="Teléfono" value={bp.phone} type="tel" onChange={(v) => setBp({ ...bp, phone: v })} />
+              <Field
+                label="Email de contacto"
+                value={bp.email}
+                type="email"
+                onChange={(v) => setBp({ ...bp, email: v })}
+              />
+              <Field label="Sitio web" value={bp.website} onChange={(v) => setBp({ ...bp, website: v })} />
               <div style={{ gridColumn: '1 / -1' }}>
-                <FieldRow label="Dirección" value="Av. Álvaro Obregón 123, Col. Roma Norte, CDMX" />
+                <Field label="Dirección" value={bp.address} onChange={(v) => setBp({ ...bp, address: v })} />
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
-              <Button variant="primary" size="md">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
+              <SaveStatus status={bpStatus} />
+              <Button variant="primary" size="md" onClick={saveBp} disabled={bpStatus === 'saving'}>
                 Guardar cambios
               </Button>
             </div>
@@ -157,7 +186,11 @@ const Settings = () => {
                   </div>
                   {i < 6 && (
                     <span
-                      style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}
+                      style={{
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--text-muted)',
+                      }}
                     >
                       {i === 5 ? '10:00 – 18:00' : '9:00 – 19:00'}
                     </span>
@@ -168,48 +201,49 @@ const Settings = () => {
           </Card>
 
           <Card eyebrow="Personal" title="Equipo">
-            {D.staff.map((s, i) => (
+            {profs.length === 0 ? (
               <div
-                key={s.name}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 0',
-                  borderBottom: i < D.staff.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                  padding: '16px 0',
+                  textAlign: 'center',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-sm)',
                 }}
               >
-                <Avatar name={s.name} size="sm" tone={i === 0 ? 'rose' : i === 1 ? 'lavender' : 'ink'} />
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 'var(--text-sm)',
-                      fontWeight: 'var(--fw-medium)',
-                      color: 'var(--text-heading)',
-                    }}
-                  >
-                    {s.name}
-                  </div>
-                  <div
-                    style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}
-                  >
-                    {s.role}
-                  </div>
-                </div>
-                <Badge tone="positive" dot>
-                  Activa
-                </Badge>
-                <Button variant="ghost" size="sm">
-                  Editar
-                </Button>
+                Cargando equipo…
               </div>
-            ))}
-            <div style={{ marginTop: 16 }}>
-              <Button variant="secondary" size="sm">
-                + Agregar empleada
-              </Button>
-            </div>
+            ) : (
+              profs.map((p, i) => (
+                <div
+                  key={p.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '10px 0',
+                    borderBottom: i < profs.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                  }}
+                >
+                  <Avatar name={p.fullName} size="sm" tone={i === 0 ? 'rose' : i === 1 ? 'lavender' : 'ink'} />
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 'var(--fw-medium)',
+                        color: 'var(--text-heading)',
+                      }}
+                    >
+                      {p.fullName}
+                    </div>
+                  </div>
+                  <Badge tone="positive" dot>
+                    Activa
+                  </Badge>
+                </div>
+              ))
+            )}
           </Card>
         </div>
       )}
@@ -218,7 +252,12 @@ const Settings = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card eyebrow="Perfil" title="Mi cuenta">
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-              <Avatar name="Valentina López" size="lg" tone="rose" ring />
+              <Avatar
+                name={[me.first_name, me.last_name].filter(Boolean).join(' ') || 'Z'}
+                size="lg"
+                tone="rose"
+                ring
+              />
               <div>
                 <div
                   style={{
@@ -227,10 +266,10 @@ const Settings = () => {
                     color: 'var(--text-heading)',
                   }}
                 >
-                  Valentina López
+                  {[me.first_name, me.last_name].filter(Boolean).join(' ') || 'Tu nombre'}
                 </div>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-                  Propietaria · Zenya Nails &amp; Spa
+                  Propietaria &middot; {bp.name || 'Zenya Nails & Spa'}
                 </div>
                 <Badge tone="rose" style={{ marginTop: 6 }}>
                   Dueña
@@ -238,125 +277,16 @@ const Settings = () => {
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <FieldRow label="Nombre" value="Valentina" />
-              <FieldRow label="Apellido" value="López" />
-              <FieldRow label="Email" value="valentina@zenya.mx" type="email" />
-              <FieldRow label="Teléfono" value="+52 55 9876 5432" type="tel" />
+              <Field label="Nombre" value={me.first_name} onChange={(v) => setMe({ ...me, first_name: v })} />
+              <Field label="Apellido" value={me.last_name} onChange={(v) => setMe({ ...me, last_name: v })} />
+              <Field label="Email" value={me.email} type="email" onChange={(v) => setMe({ ...me, email: v })} />
+              <Field label="Teléfono" value={me.phone} type="tel" onChange={(v) => setMe({ ...me, phone: v })} />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
-              <Button variant="primary" size="md">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
+              <SaveStatus status={meStatus} />
+              <Button variant="primary" size="md" onClick={saveMe} disabled={meStatus === 'saving'}>
                 Guardar cambios
               </Button>
-            </div>
-          </Card>
-
-          <Card eyebrow="Seguridad" title="Contraseña y acceso">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <FieldRow label="Contraseña actual" value="" type="password" />
-              <FieldRow label="Nueva contraseña" value="" type="password" />
-              <FieldRow label="Confirmar contraseña" value="" type="password" />
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Button variant="primary" size="md">
-                  Cambiar contraseña
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {tab === 'notificaciones' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Card eyebrow="Citas" title="Notificaciones de citas">
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                borderTop: '1px solid var(--border-subtle)',
-                paddingTop: 8,
-              }}
-            >
-              <Toggle
-                label="Nueva cita confirmada"
-                checked={notifs.newAppt}
-                onChange={(v) => setNotifs({ ...notifs, newAppt: v })}
-              />
-              <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <Toggle
-                  label="Cita cancelada"
-                  checked={notifs.cancelAppt}
-                  onChange={(v) => setNotifs({ ...notifs, cancelAppt: v })}
-                />
-              </div>
-              <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <Toggle
-                  label="Recordatorio 24 horas antes"
-                  checked={notifs.reminder24}
-                  onChange={(v) => setNotifs({ ...notifs, reminder24: v })}
-                />
-              </div>
-              <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <Toggle
-                  label="Recordatorio 2 horas antes"
-                  checked={notifs.reminder2h}
-                  onChange={(v) => setNotifs({ ...notifs, reminder2h: v })}
-                />
-              </div>
-            </div>
-          </Card>
-
-          <Card eyebrow="Pagos" title="Notificaciones de pagos">
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                borderTop: '1px solid var(--border-subtle)',
-                paddingTop: 8,
-              }}
-            >
-              <Toggle
-                label="Pago recibido"
-                checked={notifs.payment}
-                onChange={(v) => setNotifs({ ...notifs, payment: v })}
-              />
-            </div>
-          </Card>
-
-          <Card eyebrow="Reportes" title="Notificaciones de reportes">
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                borderTop: '1px solid var(--border-subtle)',
-                paddingTop: 8,
-              }}
-            >
-              <Toggle
-                label="Reporte semanal"
-                checked={notifs.weekReport}
-                onChange={(v) => setNotifs({ ...notifs, weekReport: v })}
-              />
-              <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <Toggle
-                  label="Reporte mensual"
-                  checked={notifs.monthReport}
-                  onChange={(v) => setNotifs({ ...notifs, monthReport: v })}
-                />
-              </div>
-              <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <Toggle
-                  label="Nueva clienta registrada"
-                  checked={notifs.newClient}
-                  onChange={(v) => setNotifs({ ...notifs, newClient: v })}
-                />
-              </div>
-              <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <Toggle
-                  label="Reseñas y calificaciones"
-                  checked={notifs.reviews}
-                  onChange={(v) => setNotifs({ ...notifs, reviews: v })}
-                />
-              </div>
             </div>
           </Card>
         </div>
@@ -364,20 +294,9 @@ const Settings = () => {
 
       {tab === 'preferencias' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Card eyebrow="Apariencia" title="Tema y visualización">
+          <Card eyebrow="Apariencia" title="Tema">
             <div>
-              <div
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 'var(--text-xs)',
-                  fontWeight: 'var(--fw-semibold)',
-                  color: 'var(--text-secondary)',
-                  marginBottom: 8,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                TEMA
-              </div>
+              <div style={labelStyle}>TEMA</div>
               <SegmentedControl
                 options={[
                   { value: 'light', label: 'Claro' },
@@ -385,9 +304,23 @@ const Settings = () => {
                   { value: 'auto', label: 'Sistema' },
                 ]}
                 value={theme}
-                onChange={setTheme}
+                onChange={handleTheme}
                 size="md"
               />
+              <p
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-xs)',
+                  color: 'var(--text-muted)',
+                  margin: '10px 0 0',
+                }}
+              >
+                {theme === 'auto'
+                  ? 'Sigue la preferencia de tu dispositivo'
+                  : theme === 'dark'
+                    ? 'Tema oscuro activo'
+                    : 'Tema claro activo'}
+              </p>
             </div>
           </Card>
 
@@ -395,8 +328,8 @@ const Settings = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <Select
                 label="IDIOMA"
-                value={lang}
-                onChange={setLang}
+                value="es"
+                onChange={() => {}}
                 options={[
                   { value: 'es', label: 'Español (MX)' },
                   { value: 'en', label: 'English' },
@@ -404,54 +337,13 @@ const Settings = () => {
               />
               <Select
                 label="MONEDA"
-                value={currency}
-                onChange={setCurrency}
+                value="MXN"
+                onChange={() => {}}
                 options={[
                   { value: 'MXN', label: 'MXN – Peso mexicano' },
                   { value: 'USD', label: 'USD – Dólar' },
                 ]}
               />
-            </div>
-          </Card>
-
-          <Card eyebrow="Plan" title="Mi plan actual">
-            <div
-              style={{
-                background: 'var(--lavender-50)',
-                borderRadius: 'var(--radius-md)',
-                padding: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 16,
-                flexWrap: 'wrap',
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: 'var(--text-xl)',
-                    color: 'var(--lavender-700)',
-                    marginBottom: 4,
-                  }}
-                >
-                  Plan Básico
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 'var(--text-sm)',
-                    color: 'var(--lavender-700)',
-                    opacity: 0.8,
-                  }}
-                >
-                  Hasta 2 empleadas · 100 citas/mes · Reportes básicos
-                </div>
-              </div>
-              <Button variant="primary" size="md" style={{ background: 'var(--lavender-700)', color: 'var(--white)' }}>
-                Mejorar a Studio
-              </Button>
             </div>
           </Card>
         </div>

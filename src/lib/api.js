@@ -9,6 +9,16 @@ async function get(path, params = {}) {
   return res.json();
 }
 
+async function put(path, body) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'PUT',
+    headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  return res.json();
+}
+
 export const api = {
   kpis: (params) => get('/analytics/kpis', params),
   revenueByDay: (params) => get('/analytics/revenue-by-day', params),
@@ -23,6 +33,10 @@ export const api = {
   clients: (params) => get('/clients', params),
   professionals: () => get('/professionals'),
   services: () => get('/services'),
+  businessProfile: () => get('/business-profile'),
+  updateBusinessProfile: (body) => put('/business-profile', body),
+  userProfile: () => get('/me'),
+  updateUserProfile: (body) => put('/me', body),
   products: () => get('/products'),
   paymentMethods: () => get('/payment-methods'),
 };
