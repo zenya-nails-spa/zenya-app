@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { PanelLeftClose, PanelLeftOpen, Menu } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Menu, Sun, Moon } from 'lucide-react';
 
 import { api } from './lib/api';
 import { useApi } from './hooks/use-api';
@@ -7,7 +7,9 @@ import Sidebar from './components/layout/sidebar';
 import SectionTitle from './components/widgets/section-title';
 import DateRangePicker from './components/ui/date-range-picker';
 import { SkeletonCard } from './components/ui/skeleton';
+import IconButton from './components/ui/icon-button';
 
+import Login from './pages/login';
 import Overview from './pages/overview';
 import Revenue from './pages/revenue';
 import Services from './pages/services';
@@ -95,11 +97,13 @@ export function applyTheme(t) {
 }
 
 const App = () => {
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem('zenya-auth-token'));
   const [active, setActive] = useState('overview');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState(initialRange);
+  const [theme, setTheme] = useState(() => localStorage.getItem('zenya-theme') || 'light');
 
   const prevDateRange = useMemo(
     () => computePrevRange(dateRange.from_date, dateRange.to_date),
@@ -109,6 +113,10 @@ const App = () => {
   useEffect(() => {
     applyTheme(localStorage.getItem('zenya-theme') || 'light');
   }, []);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   const { data: ownerData } = useApi(() => api.userProfile(), []);
 
@@ -124,6 +132,16 @@ const App = () => {
     }, 480);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('zenya-auth-token');
+    setAuthed(false);
+    setActive('overview');
+  };
+
+  if (!authed) {
+    return <Login onLogin={() => setAuthed(true)} />;
+  }
+
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-page)', overflow: 'hidden' }}>
       <Sidebar
@@ -134,6 +152,7 @@ const App = () => {
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
         owner={ownerData}
+        onLogout={handleLogout}
       />
 
       <main className="z-main">
@@ -185,6 +204,13 @@ const App = () => {
               {!HIDE_RANGE.has(active) && (
                 <DateRangePicker value={dateRange} onChange={setDateRange} className="z-hide-sm" />
               )}
+              <IconButton
+                label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+                variant="outline"
+                onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              >
+                {theme === 'dark' ? <Sun size={16} strokeWidth={1.7} /> : <Moon size={16} strokeWidth={1.7} />}
+              </IconButton>
             </div>
           </div>
 

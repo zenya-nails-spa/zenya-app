@@ -5,7 +5,7 @@ import StatCard from '../components/widgets/stat-card';
 import Card from '../components/ui/card';
 import AreaChart from '../components/charts/area-chart';
 import RankRow from '../components/widgets/rank-row';
-import Avatar from '../components/ui/avatar';
+import StaffCard from '../components/widgets/staff-card';
 import LegendRow from '../components/ui/legend-row';
 import SegmentedControl from '../components/ui/segmented-control';
 import { Clock, TrendingUp, TrendingDown, Sparkles, Award, Calendar, Heart } from 'lucide-react';
@@ -19,6 +19,12 @@ const INSIGHT_COLORS = {
   positive: { bg: 'var(--lavender-50)', fg: 'var(--green-600)' },
   caution: { bg: 'var(--lavender-50)', fg: 'var(--amber-600)' },
   neutral: { bg: 'var(--lavender-50)', fg: 'var(--lavender-500)' },
+};
+
+const HEALTH_COLORS = {
+  green: { dot: 'var(--green-500)', soft: 'var(--positive-soft)' },
+  amber: { dot: 'var(--amber-500)', soft: 'var(--caution-soft)' },
+  red: { dot: 'var(--red-500)', soft: 'var(--negative-soft)' },
 };
 
 function computeInsights({ kpis, kpisPrev, topServices, staffData, revByDay }) {
@@ -87,6 +93,7 @@ const Overview = ({ dateRange, prevDateRange }) => {
   const { data: topServices } = useApi(() => api.topServices({ ...dateRange, limit: 5 }), deps);
   const { data: staffData } = useApi(() => api.staffPerformance(dateRange), deps);
   const { data: recentBookings } = useApi(() => api.bookings({ ...dateRange, limit: 6 }), deps);
+  const { data: healthData } = useApi(() => api.healthScore(dateRange), deps);
 
   const revDelta = kpis && kpisPrev?.revenue ? ((kpis.revenue - kpisPrev.revenue) / kpisPrev.revenue) * 100 : 0;
   const apptDelta =
@@ -100,11 +107,27 @@ const Overview = ({ dateRange, prevDateRange }) => {
   const chartLabels = useMemo(() => revByDay?.map((r) => `Día ${new Date(r.date).getDate()}`) ?? [], [revByDay]);
   const maxServiceRev = topServices?.length ? Math.max(...topServices.map((s) => s.revenue)) : 1;
   const bookings = recentBookings ?? [];
-  const staff = staffData ?? [];
+
+  const staff = useMemo(
+    () =>
+      (staffData ?? []).map((s, i) => ({
+        ...s,
+        name: [s.first_name, s.last_name].filter(Boolean).join(' ') || `Profesional ${s.professional_id}`,
+        rev: s.revenue ?? 0,
+        appts: s.services_count ?? 0,
+        clients: s.clients_count ?? 0,
+        avg: s.avg_ticket ?? 0,
+        color: CHART[i % CHART.length],
+      })),
+    [staffData]
+  );
+
   const insights = useMemo(
     () => computeInsights({ kpis, kpisPrev, topServices, staffData, revByDay }),
     [kpis, kpisPrev, topServices, staffData, revByDay]
   );
+
+  const healthMetrics = healthData?.metrics ?? [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -311,74 +334,107 @@ const Overview = ({ dateRange, prevDateRange }) => {
         </Card>
       </div>
 
-      <Card eyebrow="Personal" title="Rendimiento del equipo">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {staff.map((s, i) => {
-            const name = [s.first_name, s.last_name].filter(Boolean).join(' ') || `Profesional ${s.professional_id}`;
-            return (
-              <div
-                key={s.professional_id}
-                className="z-row"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  padding: '12px 0',
-                  borderBottom: i < staff.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                }}
-              >
-                <Avatar name={name} size="sm" tone={i === 0 ? 'rose' : i === 1 ? 'lavender' : 'ink'} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
+      {/* Business health scorecard */}
+      {healthMetrics.length > 0 && (
+        <Card eyebrow="Diagnóstico" title="Salud del negocio">
+          <div className="z-health-grid">
+            {healthMetrics.map((m, i) => {
+              const c = HEALTH_COLORS[m.status] ?? HEALTH_COLORS.amber;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 12,
+                    padding: '13px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: c.soft,
+                  }}
+                >
+                  <span
                     style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 'var(--text-sm)',
-                      fontWeight: 'var(--fw-medium)',
-                      color: 'var(--text-heading)',
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: c.dot,
+                      flexShrink: 0,
+                      marginTop: 5,
                     }}
-                  >
-                    {name}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        gap: 8,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 'var(--text-sm)',
+                          fontWeight: 'var(--fw-semibold)',
+                          color: 'var(--text-heading)',
+                        }}
+                      >
+                        {m.name}
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 'var(--text-sm)',
+                          fontWeight: 'var(--fw-medium)',
+                          color: 'var(--text-body)',
+                        }}
+                      >
+                        {m.value}
+                      </span>
+                    </div>
+                    {m.note && (
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 'var(--text-xs)',
+                          color: 'var(--text-muted)',
+                          marginTop: 2,
+                        }}
+                      >
+                        {m.note}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 'var(--text-sm)',
-                      fontWeight: 'var(--fw-semibold)',
-                      color: 'var(--text-heading)',
-                    }}
-                  >
-                    {money(s.revenue)}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    {s.services_count ?? 0} citas
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          {!staff.length && (
-            <div
-              style={{
-                padding: '20px 0',
-                textAlign: 'center',
-                color: 'var(--text-muted)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 'var(--text-sm)',
-              }}
-            >
-              Sin datos de personal
-            </div>
-          )}
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Staff performance grid */}
+      {staff.length > 0 && (
+        <div>
+          <div
+            style={{
+              fontFamily: 'var(--font-label)',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: 'var(--ls-label)',
+              textTransform: 'uppercase',
+              color: 'var(--text-brand)',
+              marginBottom: 14,
+            }}
+          >
+            Rendimiento del equipo
+          </div>
+          <div className="z-staff-grid">
+            {staff.map((s, i) => (
+              <StaffCard key={s.name} s={s} rank={i + 1} maxRev={Math.max(...staff.map((x) => x.rev))} money={money} />
+            ))}
+          </div>
         </div>
-      </Card>
+      )}
     </div>
   );
 };

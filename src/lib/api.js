@@ -9,6 +9,16 @@ async function get(path, params = {}) {
   return res.json();
 }
 
+async function post(path, body) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  return res.json();
+}
+
 async function put(path, body) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'PUT',
@@ -20,6 +30,10 @@ async function put(path, body) {
 }
 
 export const api = {
+  // auth
+  login: (email, password) => post('/auth/login', { email, password }),
+
+  // analytics — existing
   kpis: (params) => get('/analytics/kpis', params),
   revenueByDay: (params) => get('/analytics/revenue-by-day', params),
   topServices: (params) => get('/analytics/top-services', params),
@@ -27,6 +41,19 @@ export const api = {
   paymentMethodsBreakdown: (params) => get('/analytics/payment-methods-breakdown', params),
   clientRetention: (params) => get('/analytics/client-retention', params),
   clientStats: (params) => get('/analytics/client-stats', params),
+
+  // analytics — new endpoints (to be implemented in zenya-api)
+  healthScore: (params) => get('/analytics/health-score', params),
+  serviceCategories: (params) => get('/analytics/service-categories', params),
+  crossSell: (params) => get('/analytics/cross-sell', params),
+  serviceRepeatRate: (params) => get('/analytics/service-repeat-rate', params),
+  staffRepeatRate: (params) => get('/analytics/staff-repeat-rate', params),
+  clientProfiles: (params) => get('/analytics/client-profiles', params),
+  clvSegments: (params) => get('/analytics/clv-segments', params),
+  lowDemandServices: (params) => get('/analytics/low-demand-services', params),
+  acquisitionTrend: (params) => get('/analytics/acquisition-trend', params),
+
+  // resources
   sales: (params) => get('/sales', params),
   salesSummary: (params) => get('/sales/summary', params),
   bookings: (params) => get('/bookings', params),

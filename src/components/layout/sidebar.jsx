@@ -2,7 +2,16 @@ import { LogOut } from 'lucide-react';
 import Avatar from '../ui/avatar';
 import { getIcon } from '../../lib/icons';
 
-const Sidebar = ({ active, onNavigate, items = [], collapsed = false, mobileOpen = false, onCloseMobile, owner }) => {
+const Sidebar = ({
+  active,
+  onNavigate,
+  items = [],
+  collapsed = false,
+  mobileOpen = false,
+  onCloseMobile,
+  owner,
+  onLogout,
+}) => {
   const ownerName = [owner?.first_name, owner?.last_name].filter(Boolean).join(' ') || 'Dueña';
   return (
     <>
@@ -175,6 +184,7 @@ const Sidebar = ({ active, onNavigate, items = [], collapsed = false, mobileOpen
               </div>
               <button
                 title="Cerrar sesión"
+                onClick={onLogout}
                 style={{
                   background: 'transparent',
                   border: 'none',
