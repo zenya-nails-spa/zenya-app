@@ -11,13 +11,13 @@ import DataTable from '../components/widgets/data-table';
 import Avatar from '../components/ui/avatar';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
-const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
 const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
 const COLUMNS = [
+  { key: 'rank', label: '#', align: 'center' },
   { key: 'name', label: 'Empleada' },
   { key: 'appts', label: 'Citas', align: 'right' },
-  { key: 'clients', label: 'Clientas', align: 'right' },
+  { key: 'recurring', label: 'Clientas recurrentes', align: 'right' },
   { key: 'avg', label: 'Ticket prom.', align: 'right' },
   { key: 'rev', label: 'Ingresos', align: 'right' },
 ];
@@ -25,6 +25,12 @@ const COLUMNS = [
 const Staff = ({ dateRange }) => {
   const deps = [dateRange.from_date, dateRange.to_date];
   const { data: staffData } = useApi(() => api.staffPerformance(dateRange), deps);
+  const { data: repeatData } = useApi(() => api.staffRepeatRate(dateRange), deps);
+
+  const repeatMap = useMemo(() => {
+    if (!repeatData?.length) return {};
+    return Object.fromEntries(repeatData.map((r) => [r.professional_id, r.repeat_clients ?? 0]));
+  }, [repeatData]);
 
   const staff = useMemo(
     () =>
@@ -36,8 +42,9 @@ const Staff = ({ dateRange }) => {
         clients: s.clients_count ?? 0,
         avg: s.avg_ticket ?? 0,
         color: CHART[i % CHART.length],
+        recurringClients: repeatMap[s.professional_id] ?? null,
       })),
-    [staffData]
+    [staffData, repeatMap]
   );
 
   const maxRev = staff.length ? Math.max(...staff.map((s) => s.rev)) : 1;
@@ -84,16 +91,31 @@ const Staff = ({ dateRange }) => {
       </div>
 
       <div className="z-2col">
-        <Card eyebrow="Distribución" title="Ingresos por empleada">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+        <Card eyebrow="Ranking" title="Ingresos por persona">
+          {staff.map((s, i) => (
+            <RankRow
+              key={s.name}
+              rank={i + 1}
+              label={s.name}
+              sublabel={s.appts + ' citas'}
+              value={money(s.rev)}
+              ratio={s.rev / maxRev}
+              color={s.color}
+              last={i === staff.length - 1}
+            />
+          ))}
+        </Card>
+
+        <Card eyebrow="Carga" title="Distribución de trabajo">
+          <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
             <Donut
-              data={staff.map((s) => ({ value: s.rev, color: s.color }))}
+              data={staff.map((s) => ({ value: s.appts, color: s.color }))}
               size={150}
               thickness={20}
-              centerValue={moneyK(totalRev)}
-              centerLabel="total"
+              centerValue={totalAppts}
+              centerLabel="citas"
             />
-            <div style={{ flex: 1, minWidth: 120 }}>
+            <div style={{ flex: 1, minWidth: 140 }}>
               {staff.map((s, i) => (
                 <div
                   key={s.name}
@@ -108,7 +130,11 @@ const Staff = ({ dateRange }) => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
                     <span
-                      style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}
+                      style={{
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--text-body)',
+                      }}
                     >
                       {s.name.split(' ')[0]}
                     </span>
@@ -121,52 +147,47 @@ const Staff = ({ dateRange }) => {
                       color: 'var(--text-heading)',
                     }}
                   >
-                    {totalRev ? `${Math.round((s.rev / totalRev) * 100)}%` : '—'}
+                    {totalAppts ? `${Math.round((s.appts / totalAppts) * 100)}%` : '—'}
                   </span>
                 </div>
               ))}
             </div>
           </div>
         </Card>
-
-        <Card eyebrow="Comparativa" title="Citas por empleada">
-          <BarChart
-            data={staff.map((s) => ({ label: s.name.split(' ')[0], value: s.appts, color: s.color }))}
-            height={200}
-            yFormat={(v) => v}
-          />
-        </Card>
       </div>
 
-      <Card eyebrow="Ranking" title="Por ingresos del mes">
-        {staff.map((s, i) => (
-          <RankRow
-            key={s.name}
-            rank={i + 1}
-            label={s.name}
-            sublabel={`${s.appts} citas · ${s.clients} clientas`}
-            value={money(s.rev)}
-            ratio={s.rev / maxRev}
-            color={s.color}
-            last={i === staff.length - 1}
-          />
-        ))}
+      <Card eyebrow="Servicios" title="Volumen por persona">
+        <BarChart
+          data={staff.map((s) => ({ label: s.name.split(' ')[0], value: s.appts, color: s.color }))}
+          height={200}
+          yFormat={(v) => String(Math.round(v))}
+        />
       </Card>
 
-      <Card eyebrow="Detalle" title="Tabla de personal">
+      <Card eyebrow="Detalle" title="Ranking del equipo">
         <DataTable
           columns={COLUMNS}
           rows={staff}
-          renderCell={(row, key) => {
+          renderCell={(row, key, ri) => {
+            if (key === 'rank')
+              return <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{(ri ?? 0) + 1}</span>;
             if (key === 'name')
               return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Avatar name={row.name} size="sm" />
+                  <Avatar name={row.name} size="sm" tone={ri === 0 ? 'rose' : ri === 1 ? 'lavender' : 'ink'} />
                   <span style={{ fontWeight: 'var(--fw-medium)', color: 'var(--text-heading)' }}>{row.name}</span>
                 </div>
               );
-            if (key === 'rev') return money(row.rev);
+            if (key === 'appts') return row.appts;
+            if (key === 'recurring')
+              return row.recurringClients != null ? (
+                <span style={{ fontWeight: 600, color: 'var(--text-display)' }}>{row.recurringClients}</span>
+              ) : (
+                '—'
+              );
             if (key === 'avg') return money(row.avg);
+            if (key === 'rev')
+              return <span style={{ fontWeight: 600, color: 'var(--text-display)' }}>{money(row.rev)}</span>;
             return row[key] ?? '—';
           }}
         />

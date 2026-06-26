@@ -6,7 +6,13 @@ import Card from '../components/ui/card';
 import DataTable from '../components/widgets/data-table';
 import ApptStatus from '../components/widgets/appt-status';
 import Badge from '../components/ui/badge';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, Clock, XCircle } from 'lucide-react';
+
+const PAYMENT_ICON_CARDS = [
+  { key: 'paid', label: 'Pagadas', icon: CheckCircle, bg: 'var(--positive-soft)', iconColor: 'var(--positive)' },
+  { key: 'pending', label: 'Pendientes', icon: Clock, bg: 'var(--caution-soft)', iconColor: 'var(--caution)' },
+  { key: 'unpaid', label: 'No pagadas', icon: XCircle, bg: 'var(--negative-soft)', iconColor: 'var(--negative)' },
+];
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 
@@ -183,9 +189,11 @@ const Appointments = () => {
     [bookings, profNames]
   );
 
-  const paid = rows.filter((r) => r.status === 'paid').length;
-  const pending = rows.filter((r) => r.status === 'pending').length;
+  const paid = rows.filter((r) => r.payment_status === 'ASSOCIATED' || r.status === 'paid').length;
+  const unpaid = rows.filter((r) => !r.payment_status || r.payment_status === 'UNPAID').length;
+  const pending = rows.length - paid - unpaid;
   const totalRev = rows.reduce((s, r) => s + (r.amount ?? 0), 0);
+  const paymentCounts = { paid, pending: Math.max(0, pending), unpaid };
 
   const displayDate = parseLocalDate(selectedDate).toLocaleDateString('es-MX', {
     weekday: 'long',
@@ -198,6 +206,62 @@ const Appointments = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
+      {/* Styled payment-status cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        {PAYMENT_ICON_CARDS.map(({ key, label, icon: Icon, bg, iconColor }) => (
+          <div
+            key={key}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '16px 18px',
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 'var(--radius-md)',
+                background: bg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Icon size={20} strokeWidth={1.8} color={iconColor} />
+            </div>
+            <div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'var(--text-2xl)',
+                  fontWeight: 700,
+                  color: 'var(--text-display)',
+                  lineHeight: 1.1,
+                }}
+              >
+                {loading ? '…' : paymentCounts[key]}
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-sm)',
+                  color: 'var(--text-muted)',
+                  marginTop: 2,
+                }}
+              >
+                {label}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="z-status-row">
         <StatCard
           label="Citas del día"

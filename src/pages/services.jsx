@@ -5,7 +5,9 @@ import StatCard from '../components/widgets/stat-card';
 import Card from '../components/ui/card';
 import RankRow from '../components/widgets/rank-row';
 import BarChart from '../components/charts/bar-chart';
+import Donut from '../components/charts/donut';
 import DataTable from '../components/widgets/data-table';
+import Badge from '../components/ui/badge';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
@@ -14,13 +16,25 @@ const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--char
 const COLUMNS = [
   { key: 'name', label: 'Servicio' },
   { key: 'count', label: 'Citas', align: 'right' },
+  { key: 'unique', label: 'Clientas únicas', align: 'right' },
+  { key: 'repeat', label: 'Tasa de repetición', align: 'right' },
   { key: 'avg', label: 'Ticket prom.', align: 'right' },
   { key: 'rev', label: 'Ingresos', align: 'right' },
+];
+
+const CROSSSELL_COLUMNS = [
+  { key: 'service_a', label: 'Servicio A' },
+  { key: 'service_b', label: 'Servicio B' },
+  { key: 'co_purchases', label: 'Comprados juntos', align: 'right' },
+  { key: 'tag', label: 'Oportunidad', align: 'right' },
 ];
 
 const Services = ({ dateRange }) => {
   const deps = [dateRange.from_date, dateRange.to_date];
   const { data: rawTopServices } = useApi(() => api.topServices({ ...dateRange, limit: 20 }), deps);
+  const { data: categoriesData } = useApi(() => api.serviceCategories(dateRange), deps);
+  const { data: crossSellData } = useApi(() => api.crossSell(dateRange), deps);
+  const { data: repeatData } = useApi(() => api.serviceRepeatRate(dateRange), deps);
 
   const services = useMemo(
     () =>
@@ -33,6 +47,21 @@ const Services = ({ dateRange }) => {
     [rawTopServices]
   );
 
+  const repeatMap = useMemo(() => {
+    if (!repeatData?.length) return {};
+    return Object.fromEntries(repeatData.map((r) => [r.service_name, r]));
+  }, [repeatData]);
+
+  const tableRows = useMemo(
+    () =>
+      services.map((s) => ({
+        ...s,
+        unique: repeatMap[s.name]?.total_clients ?? '—',
+        repeatRate: repeatMap[s.name]?.repeat_rate ?? null,
+      })),
+    [services, repeatMap]
+  );
+
   const maxRev = services.length ? Math.max(...services.map((s) => s.rev)) : 1;
   const maxCount = services.length ? Math.max(...services.map((s) => s.count)) : 1;
   const totalCitas = services.reduce((sum, s) => sum + s.count, 0);
@@ -40,6 +69,17 @@ const Services = ({ dateRange }) => {
   const topRev = services.length ? services.reduce((a, b) => (a.rev > b.rev ? a : b)) : null;
   const topCount = services.length ? services.reduce((a, b) => (a.count > b.count ? a : b)) : null;
   const topAvg = services.length ? services.reduce((a, b) => (a.avg > b.avg ? a : b)) : null;
+
+  const categories = useMemo(() => {
+    if (!categoriesData?.length) return [];
+    return categoriesData.map((c, i) => ({
+      ...c,
+      color: `var(--chart-${(i % 5) + 1})`,
+    }));
+  }, [categoriesData]);
+  const catTotal = categories.reduce((s, c) => s + (c.revenue ?? 0), 0);
+
+  const crossSell = crossSellData ?? [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -71,10 +111,83 @@ const Services = ({ dateRange }) => {
         />
       </div>
 
+      {/* Category breakdown donut */}
+      {categories.length > 0 && (
+        <Card eyebrow="Categorías" title="Ingresos por categoría">
+          <div style={{ display: 'flex', gap: 32, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Donut
+              data={categories.map((c) => ({ value: c.revenue ?? 0, color: c.color }))}
+              size={180}
+              thickness={22}
+              centerValue={catTotal ? moneyK(catTotal) : '—'}
+              centerLabel="total"
+            />
+            <div
+              style={{
+                flex: 1,
+                minWidth: 240,
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '10px 20px',
+              }}
+            >
+              {categories.map((c, i) => (
+                <div
+                  key={i}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}
+                >
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 'var(--text-sm)',
+                      color: 'var(--text-secondary)',
+                      minWidth: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 3,
+                        background: c.color,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {c.name}
+                    </span>
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 600,
+                      color: 'var(--text-display)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {money(c.revenue ?? 0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="z-2col">
         <Card eyebrow="Ingresos" title="Por servicio">
           <BarChart
-            data={services.map((s, i) => ({
+            data={services.slice(0, 8).map((s, i) => ({
               label: s.name.split(' ')[0],
               value: s.rev,
               color: CHART[i % CHART.length],
@@ -86,11 +199,14 @@ const Services = ({ dateRange }) => {
 
         <Card eyebrow="Demanda" title="Citas por servicio">
           <BarChart
-            data={services.map((s, i) => ({
-              label: s.name.split(' ')[0],
-              value: s.count,
-              color: CHART[i % CHART.length],
-            }))}
+            data={[...services]
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 8)
+              .map((s, i) => ({
+                label: s.name.split(' ')[0],
+                value: s.count,
+                color: CHART[i % CHART.length],
+              }))}
             height={220}
             yFormat={(v) => String(Math.round(v))}
           />
@@ -99,7 +215,7 @@ const Services = ({ dateRange }) => {
 
       <div className="z-2col">
         <Card eyebrow="Ranking" title="Por ingresos">
-          {services.map((s, i) => (
+          {services.slice(0, 6).map((s, i) => (
             <RankRow
               key={s.name}
               rank={i + 1}
@@ -107,7 +223,7 @@ const Services = ({ dateRange }) => {
               value={money(s.rev)}
               ratio={s.rev / maxRev}
               color={CHART[i % CHART.length]}
-              last={i === services.length - 1}
+              last={i === Math.min(5, services.length - 1)}
             />
           ))}
         </Card>
@@ -115,6 +231,7 @@ const Services = ({ dateRange }) => {
         <Card eyebrow="Ranking" title="Por cantidad">
           {[...services]
             .sort((a, b) => b.count - a.count)
+            .slice(0, 6)
             .map((s, i) => (
               <RankRow
                 key={s.name}
@@ -124,19 +241,62 @@ const Services = ({ dateRange }) => {
                 value={`${s.count} citas`}
                 ratio={s.count / maxCount}
                 color={CHART[i % CHART.length]}
-                last={i === services.length - 1}
+                last={i === Math.min(5, services.length - 1)}
               />
             ))}
         </Card>
       </div>
 
+      {/* Cross-sell opportunities */}
+      {crossSell.length > 0 && (
+        <Card eyebrow="Venta cruzada" title="Oportunidades de venta cruzada">
+          <DataTable
+            columns={CROSSSELL_COLUMNS}
+            rows={crossSell}
+            renderCell={(row, key) => {
+              if (key === 'service_a')
+                return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.service_a}</span>;
+              if (key === 'service_b')
+                return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.service_b}</span>;
+              if (key === 'co_purchases')
+                return <span style={{ fontWeight: 600, color: 'var(--text-display)' }}>{row.co_purchases}</span>;
+              if (key === 'tag')
+                return (
+                  <Badge tone="lavender" size="sm">
+                    Recomendar juntos
+                  </Badge>
+                );
+              return row[key];
+            }}
+          />
+        </Card>
+      )}
+
+      {/* Full catalogue with repeat rate */}
       <Card eyebrow="Catálogo" title="Todos los servicios">
         <DataTable
           columns={COLUMNS}
-          rows={services}
+          rows={tableRows}
           renderCell={(row, key) => {
+            if (key === 'name')
+              return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.name}</span>;
             if (key === 'rev') return money(row.rev);
             if (key === 'avg') return money(row.avg);
+            if (key === 'unique') return row.unique ?? '—';
+            if (key === 'repeat') {
+              if (row.repeatRate == null) return '—';
+              const pct = Math.round(row.repeatRate * 100);
+              return (
+                <span
+                  style={{
+                    fontWeight: 600,
+                    color: pct >= 60 ? 'var(--positive)' : pct >= 40 ? 'var(--caution)' : 'var(--text-secondary)',
+                  }}
+                >
+                  {pct}%
+                </span>
+              );
+            }
             return row[key];
           }}
         />
