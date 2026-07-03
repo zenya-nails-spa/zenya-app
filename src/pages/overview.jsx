@@ -161,8 +161,8 @@ const Overview = ({ dateRange, prevDateRange }) => {
         />
         <StatCard
           label="Total clientes"
-          value={kpis ? kpis.new_clients.toLocaleString('es-MX') : '—'}
-          caption="en base de datos"
+          value={kpis ? kpis.distinct_clients.toLocaleString('es-MX') : '—'}
+          caption="clientas con compra en el periodo"
           icon="Heart"
           spark={[]}
           sparkColor="var(--chart-4)"
