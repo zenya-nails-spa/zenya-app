@@ -50,6 +50,7 @@ export const api = {
   staffRepeatRate: (params) => get('/analytics/staff-repeat-rate', params),
   unassignedServices: (params) => get('/analytics/unassigned-services', params),
   sharedProviderBreakdown: (params) => get('/analytics/shared-provider-breakdown', params),
+  gastos: (params) => get('/analytics/gastos', params),
   clientProfiles: (params) => get('/analytics/client-profiles', params),
   clvSegments: (params) => get('/analytics/clv-segments', params),
   lowDemandServices: (params) => get('/analytics/low-demand-services', params),

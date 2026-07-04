@@ -16,6 +16,7 @@ import Services from './pages/services';
 import Staff from './pages/staff';
 import Clients from './pages/clients';
 import Appointments from './pages/appointments';
+import Gastos from './pages/gastos';
 import SettingsPage from './pages/settings';
 
 const NAV = [
@@ -25,6 +26,7 @@ const NAV = [
   { id: 'staff', label: 'Personal', icon: 'Users' },
   { id: 'clients', label: 'Clientas', icon: 'Heart' },
   { id: 'appointments', label: 'Citas', icon: 'Calendar' },
+  { id: 'gastos', label: 'Gastos', icon: 'Wallet' },
   { id: 'settings', label: 'Ajustes', icon: 'Settings' },
 ];
 
@@ -35,10 +37,11 @@ const PAGE_META = {
   staff: { eyebrow: 'Equipo', title: 'Personal', subtitle: 'Métricas de desempeño' },
   clients: { eyebrow: 'CRM', title: 'Clientas', subtitle: 'Base de datos y segmentación' },
   appointments: { eyebrow: 'Agenda', title: 'Citas', subtitle: 'Gestión de citas del día' },
+  gastos: { eyebrow: 'Finanzas', title: 'Gastos', subtitle: 'Egresos, pagos a personal e insumos' },
   settings: { eyebrow: 'Configuración', title: 'Ajustes', subtitle: 'Personaliza tu espacio de trabajo' },
 };
 
-const HIDE_RANGE = new Set(['settings', 'appointments']);
+const HIDE_RANGE = new Set(['settings', 'appointments', 'gastos']);
 
 const PAGE_MAP = {
   overview: Overview,
@@ -47,6 +50,7 @@ const PAGE_MAP = {
   staff: Staff,
   clients: Clients,
   appointments: Appointments,
+  gastos: Gastos,
   settings: SettingsPage,
 };
 
