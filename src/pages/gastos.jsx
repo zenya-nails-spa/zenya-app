@@ -43,9 +43,20 @@ function currentMonthValue() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+const CIERRE_COLS = [
+  { key: 'semana', label: 'Semana' },
+  { key: 'ing_efectivo', label: 'Ingresos efectivo', align: 'right' },
+  { key: 'ing_tarjeta', label: 'Ingresos tarjeta', align: 'right' },
+  { key: 'gas_efectivo', label: 'Gastos efectivo', align: 'right' },
+  { key: 'gas_tarjeta', label: 'Gastos débito', align: 'right' },
+  { key: 'esp_efectivo', label: 'Deberíamos tener (efectivo)', align: 'right' },
+  { key: 'esp_tarjeta', label: 'Deberíamos tener (tarjeta)', align: 'right' },
+];
+
 const Gastos = () => {
   const [month, setMonth] = useState(currentMonthValue());
   const { data } = useApi(() => api.gastos({ month: `${month}-01` }), [month]);
+  const { data: cierre } = useApi(() => api.cierreSemanal({ month: `${month}-01` }), [month]);
 
   const byFuente = data?.by_fuente ?? [];
   const bySemana = data?.by_semana ?? [];
@@ -184,6 +195,65 @@ const Gastos = () => {
           )}
         </Card>
       </div>
+
+      {(cierre?.weeks ?? []).length > 0 && (
+        <Card
+          eyebrow="Corte"
+          title="Cierre de caja semanal"
+          info="El mes se divide en 4 semanas (lunes a domingo; la semana 1 absorbe los días sueltos del inicio y la 4 los del final). Ingresos vienen de las ventas: efectivo = pagos en cash; tarjeta = todo lo demás (débito, terminal, crédito, transferencias, online). Se restan los gastos de esa semana según su fuente: Efectivo sale de caja, Débito de la cuenta. Lo pagado con Crédito, Carlos o Bety no sale de caja y no se resta."
+        >
+          <DataTable
+            columns={CIERRE_COLS}
+            rows={cierre.weeks.map((w) => ({
+              semana: `${w.semana} (${w.from_date.slice(8)} – ${w.to_date.slice(8)})`,
+              ing_efectivo: w.ingresos.efectivo,
+              ing_tarjeta: w.ingresos.tarjeta,
+              gas_efectivo: w.gastos.efectivo,
+              gas_tarjeta: w.gastos.tarjeta,
+              esp_efectivo: w.esperado_efectivo,
+              esp_tarjeta: w.esperado_tarjeta,
+            }))}
+            renderCell={(row, key) => {
+              if (key === 'semana')
+                return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.semana}</span>;
+              if (key === 'esp_efectivo' || key === 'esp_tarjeta')
+                return (
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: row[key] >= 0 ? 'var(--positive)' : 'var(--negative)',
+                    }}
+                  >
+                    {money(row[key])}
+                  </span>
+                );
+              if (key.startsWith('gas_')) return <span style={{ color: 'var(--negative)' }}>−{money(row[key])}</span>;
+              return money(row[key]);
+            }}
+          />
+          <div
+            style={{
+              display: 'flex',
+              gap: 24,
+              marginTop: 12,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--text-sm)',
+              color: 'var(--text-secondary)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span>
+              Ingresos del mes:{' '}
+              <strong style={{ color: 'var(--text-display)' }}>{money(cierre.total_ingresos.total)}</strong> (efectivo{' '}
+              {money(cierre.total_ingresos.efectivo)} · tarjeta {money(cierre.total_ingresos.tarjeta)})
+            </span>
+            <span>
+              Gastos con Crédito/Carlos/Bety (no salen de caja):{' '}
+              <strong style={{ color: 'var(--text-display)' }}>{money(cierre.total_gastos.otros)}</strong>
+            </span>
+          </div>
+        </Card>
+      )}
 
       {byColaborador.length > 0 && (
         <Card
