@@ -127,6 +127,7 @@ const Clients = ({ dateRange }) => {
   const retentionKpis = useMemo(() => {
     const all = profilesData ?? [];
     return {
+      activas: all.filter((p) => p.churn_status === 'active' || p.churn_status === 'activa').length,
       enRiesgo: all.filter((p) => p.churn_status === 'at_risk').length,
       perdidas: all.filter((p) => p.churn_status === 'churned' || p.churn_status === 'lost').length,
       reactivadas: retention?.reactivated_clients ?? 0,
@@ -329,7 +330,15 @@ const Clients = ({ dateRange }) => {
       {/* ── RETENCIÓN TAB ── */}
       {tab === 'retencion' && (
         <>
-          <div className="z-kpi-grid">
+          <div className="z-kpi-grid-5">
+            <StatCard
+              label="Activas"
+              value={String(retentionKpis.activas)}
+              caption="clientas"
+              icon="Heart"
+              info="Clientas cuya última compra fue hace menos de 45 días. Son tu base saludable de clientas frecuentes."
+              numeralStyle="sans"
+            />
             <StatCard
               label="En riesgo"
               value={String(retentionKpis.enRiesgo)}
