@@ -9,6 +9,7 @@ import DataTable from '../components/widgets/data-table';
 import Avatar from '../components/ui/avatar';
 import Badge from '../components/ui/badge';
 import SegmentedControl from '../components/ui/segmented-control';
+import InfoTip from '../components/ui/info-tip';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
@@ -165,6 +166,7 @@ const Clients = ({ dateRange }) => {
               value={(kpis?.distinct_clients ?? 0).toLocaleString('es-MX')}
               caption="activas en el periodo"
               icon="Users"
+              info="Clientas con al menos una compra en el periodo seleccionado. No incluye clientas registradas que nunca han comprado (esas aparecen abajo en el directorio)."
               spark={[]}
               sparkColor="var(--chart-1)"
             />
@@ -173,23 +175,30 @@ const Clients = ({ dateRange }) => {
               value={stats ? stats.vip_count.toLocaleString('es-MX') : '—'}
               caption="4+ visitas históricas"
               icon="Star"
+              info="Clientas con 4 o más compras en toda su historia. Este número no cambia con el periodo seleccionado."
             />
             <StatCard
               label="Retención"
               value={retention ? pct(retention.retention_rate) : '—'}
               caption="clientas que regresaron"
               icon="TrendingUp"
+              info="De las clientas que compraron en el periodo anterior (mismo número de días), porcentaje que volvió a comprar en este periodo."
             />
             <StatCard
               label="Ticket promedio"
               value={kpis ? '$' + Math.round(kpis.avg_ticket).toLocaleString('es-MX') : '—'}
               caption="este periodo"
               icon="DollarSign"
+              info="Ingresos del periodo divididos entre el número de ventas. Es el gasto promedio por visita."
             />
           </div>
 
           <div className="z-2col">
-            <Card eyebrow="Segmentación" title="Lealtad de clientas">
+            <Card
+              eyebrow="Segmentación"
+              title="Lealtad de clientas"
+              info="Nuevas: clientas registradas durante el periodo. Recurrentes: clientas que compraron en el periodo y ya habían comprado antes. El centro muestra el total de clientas activas del periodo."
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
                 <Donut
                   data={donutData}
@@ -232,7 +241,11 @@ const Clients = ({ dateRange }) => {
               </div>
             </Card>
 
-            <Card eyebrow="Frecuencia" title="Visitas por clienta">
+            <Card
+              eyebrow="Frecuencia"
+              title="Visitas por clienta"
+              info="Distribución de las clientas que compraron en el periodo, según cuántas visitas hicieron dentro del mismo periodo."
+            >
               {visitsData.length > 0 ? (
                 <BarChart data={visitsData} height={200} yFormat={(v) => v} />
               ) : (
@@ -256,6 +269,7 @@ const Clients = ({ dateRange }) => {
           <Card
             eyebrow="Directorio"
             title="Clientes"
+            info="Todas las clientas registradas en AgendaPro, hayan comprado o no. Este directorio no depende del periodo seleccionado. Se muestran hasta 100 resultados; usa el buscador para encontrar a alguien."
             action={
               <input
                 placeholder="Buscar..."
@@ -321,6 +335,7 @@ const Clients = ({ dateRange }) => {
               value={String(retentionKpis.enRiesgo)}
               caption="clientas"
               icon="AlertTriangle"
+              info="Clientas cuya última compra fue hace 45 a 89 días. Todavía es buen momento para invitarlas a regresar."
               numeralStyle="sans"
             />
             <StatCard
@@ -328,6 +343,7 @@ const Clients = ({ dateRange }) => {
               value={String(retentionKpis.perdidas)}
               caption="sin volver +90d"
               icon="UserX"
+              info="Clientas cuya última compra fue hace 90 días o más. Se consideran perdidas mientras no vuelvan a comprar."
               numeralStyle="sans"
             />
             <StatCard
@@ -335,6 +351,7 @@ const Clients = ({ dateRange }) => {
               value={String(retentionKpis.reactivadas)}
               caption="este mes"
               icon="UserCheck"
+              info="Clientas que estaban perdidas (90+ días sin venir) y volvieron a comprar en este periodo."
               numeralStyle="sans"
             />
             <StatCard
@@ -342,11 +359,16 @@ const Clients = ({ dateRange }) => {
               value={retentionKpis.retencionPct != null ? pct(retentionKpis.retencionPct) : '—'}
               caption="vs mes anterior"
               icon="Repeat"
+              info="De las clientas que compraron en el periodo anterior, porcentaje que volvió a comprar en este periodo."
               numeralStyle="sans"
             />
           </div>
 
-          <Card eyebrow="Riesgo de fuga" title="Clasificación de clientas">
+          <Card
+            eyebrow="Riesgo de fuga"
+            title="Clasificación de clientas"
+            info="Toda clienta que ha comprado alguna vez, clasificada por su última visita: Activa (menos de 45 días), En riesgo (45–89) o Perdida (90+). Ingreso perdido estima cuánto dejó de gastar según su ticket promedio y el tiempo ausente. Haz clic en los encabezados para ordenar."
+          >
             {retentionProfiles.length > 0 ? (
               <DataTable
                 columns={RETENTION_COLS}
@@ -417,6 +439,7 @@ const Clients = ({ dateRange }) => {
               }}
             >
               Tiempo sin regresar
+              <InfoTip text="Cuántas clientas llevan más de 30, 60, 90, 180 o 365 días sin comprar. Cada clienta cuenta en todos los rangos que supera: una con 100 días aparece en +30, +60 y +90." />
             </div>
             <div className="z-bucket-grid">
               {churnBuckets.map((b, i) => (
@@ -452,7 +475,11 @@ const Clients = ({ dateRange }) => {
       {/* ── CLV & SEGMENTOS TAB ── */}
       {tab === 'clv' && (
         <>
-          <Card eyebrow="Valor" title="Ingresos por segmento">
+          <Card
+            eyebrow="Valor"
+            title="Ingresos por segmento"
+            info="Ingresos históricos totales agrupados por tipo de clienta. VIP: $3,000+ y 6+ visitas. Leal: $1,200+ y 3+ visitas. En riesgo: 45–89 días sin venir. Perdida: 90+ días. Ocasional: el resto."
+          >
             {clvSegments.length > 0 ? (
               <div style={{ display: 'flex', gap: 32, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Donut
@@ -536,7 +563,11 @@ const Clients = ({ dateRange }) => {
             )}
           </Card>
 
-          <Card eyebrow="Valor de vida" title="Top 10 clientas VIP">
+          <Card
+            eyebrow="Valor de vida"
+            title="Top 10 clientas VIP"
+            info="Las 10 clientas con mayores ingresos históricos. Ingresos totales suma todas sus compras desde su primera visita; el ticket promedio es su gasto típico por visita."
+          >
             {vipClients.length > 0 ? (
               <DataTable
                 columns={VIP_COLS}

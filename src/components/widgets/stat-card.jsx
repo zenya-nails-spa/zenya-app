@@ -1,5 +1,6 @@
 import DeltaBadge from '../ui/delta-badge';
 import Sparkline from '../charts/sparkline';
+import InfoTip from '../ui/info-tip';
 import { getIcon } from '../../lib/icons';
 
 const StatCard = ({
@@ -9,6 +10,7 @@ const StatCard = ({
   deltaFormat = 'percent',
   caption,
   icon,
+  info,
   spark,
   sparkColor = 'var(--chart-1)',
   numeralStyle = 'display',
@@ -43,6 +45,7 @@ const StatCard = ({
           }}
         >
           {label}
+          {info && <InfoTip text={info} />}
         </span>
         {Icon && (
           <span

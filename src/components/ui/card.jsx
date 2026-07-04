@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import InfoTip from './info-tip';
 
-const Card = ({ title, eyebrow, action, children, padding = 20, interactive = false, style }) => {
+const Card = ({ title, eyebrow, action, info, children, padding = 20, interactive = false, style }) => {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -55,6 +56,7 @@ const Card = ({ title, eyebrow, action, children, padding = 20, interactive = fa
                 }}
               >
                 {title}
+                {info && <InfoTip text={info} />}
               </div>
             )}
           </div>
