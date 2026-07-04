@@ -48,6 +48,7 @@ export const api = {
   crossSell: (params) => get('/analytics/cross-sell', params),
   serviceRepeatRate: (params) => get('/analytics/service-repeat-rate', params),
   staffRepeatRate: (params) => get('/analytics/staff-repeat-rate', params),
+  unassignedServices: (params) => get('/analytics/unassigned-services', params),
   clientProfiles: (params) => get('/analytics/client-profiles', params),
   clvSegments: (params) => get('/analytics/clv-segments', params),
   lowDemandServices: (params) => get('/analytics/low-demand-services', params),
