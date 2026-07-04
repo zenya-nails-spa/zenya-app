@@ -20,14 +20,39 @@ const TABS = [
   { value: 'clv', label: 'CLV & Segmentos' },
 ];
 
+const ESTADO_RANK = { active: 0, activa: 0, at_risk: 1, en_riesgo: 1, churned: 2, perdida: 2, lost: 2 };
+
 const RETENTION_COLS = [
   { key: 'name', label: 'Clienta' },
   { key: 'last_visit', label: 'Última visita' },
-  { key: 'days_since', label: 'Días sin visitar', align: 'right' },
+  {
+    key: 'days_since',
+    label: 'Días sin visitar',
+    align: 'right',
+    sortable: true,
+    sortValue: (row) => row.days_since_last,
+  },
   { key: 'avg_frequency', label: 'Frecuencia' },
-  { key: 'churn_status', label: 'Estado' },
-  { key: 'lifetime_revenue', label: 'Ingresos totales', align: 'right' },
-  { key: 'estimated_lost', label: 'Ingreso perdido', align: 'right' },
+  {
+    key: 'churn_status',
+    label: 'Estado',
+    sortable: true,
+    sortValue: (row) => ESTADO_RANK[row.churn_status] ?? 3,
+  },
+  {
+    key: 'lifetime_revenue',
+    label: 'Ingresos totales',
+    align: 'right',
+    sortable: true,
+    sortValue: (row) => row.lifetime_revenue ?? 0,
+  },
+  {
+    key: 'estimated_lost',
+    label: 'Ingreso perdido',
+    align: 'right',
+    sortable: true,
+    sortValue: (row) => row.estimated_lost,
+  },
 ];
 
 const VIP_COLS = [
