@@ -22,10 +22,18 @@ const COLUMNS = [
   { key: 'rev', label: 'Ingresos', align: 'right' },
 ];
 
+const UNASSIGNED_COLUMNS = [
+  { key: 'folio', label: 'Venta' },
+  { key: 'date', label: 'Fecha', sortable: true, sortValue: (r) => r.date },
+  { key: 'service_name', label: 'Servicio' },
+  { key: 'amount', label: 'Monto', align: 'right', sortable: true, sortValue: (r) => r.amount },
+];
+
 const Staff = ({ dateRange }) => {
   const deps = [dateRange.from_date, dateRange.to_date];
   const { data: staffData } = useApi(() => api.staffPerformance(dateRange), deps);
   const { data: repeatData } = useApi(() => api.staffRepeatRate(dateRange), deps);
+  const { data: unassigned } = useApi(() => api.unassignedServices(dateRange), deps);
 
   const repeatMap = useMemo(() => {
     if (!repeatData?.length) return {};
@@ -101,9 +109,20 @@ const Staff = ({ dateRange }) => {
               value={money(s.rev)}
               ratio={s.rev / maxRev}
               color={s.color}
-              last={i === staff.length - 1}
+              last={i === staff.length - 1 && !(unassigned?.count > 0)}
             />
           ))}
+          {unassigned?.count > 0 && (
+            <RankRow
+              rank={staff.length + 1}
+              label="No asignados"
+              sublabel={unassigned.count + ' servicios'}
+              value={money(unassigned.revenue)}
+              ratio={unassigned.revenue / maxRev}
+              color="var(--chart-compare)"
+              last
+            />
+          )}
         </Card>
 
         <Card eyebrow="Carga" title="Distribución de trabajo">
@@ -192,6 +211,46 @@ const Staff = ({ dateRange }) => {
           }}
         />
       </Card>
+
+      {unassigned?.count > 0 && (
+        <Card
+          eyebrow="Sin profesional"
+          title="Servicios no asignados"
+          info="Servicios cobrados sin profesional asignado en AgendaPro (diseños, cejas, extras de walk-in). Cuentan en los ingresos totales pero no aparecen en el ranking del equipo porque no hay a quién atribuirlos."
+        >
+          <div
+            style={{
+              display: 'flex',
+              gap: 24,
+              marginBottom: 12,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--text-sm)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <span>
+              Total: <strong style={{ color: 'var(--text-display)' }}>{money(unassigned.revenue)}</strong>
+            </span>
+            <span>
+              Servicios: <strong style={{ color: 'var(--text-display)' }}>{unassigned.count}</strong>
+            </span>
+          </div>
+          <DataTable
+            columns={UNASSIGNED_COLUMNS}
+            rows={unassigned.items}
+            renderCell={(row, key) => {
+              if (key === 'folio')
+                return (
+                  <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.folio ?? row.sale_id}</span>
+                );
+              if (key === 'date') return <span style={{ color: 'var(--text-secondary)' }}>{row.date}</span>;
+              if (key === 'amount')
+                return <span style={{ fontWeight: 600, color: 'var(--text-display)' }}>{money(row.amount)}</span>;
+              return row[key] ?? '—';
+            }}
+          />
+        </Card>
+      )}
     </div>
   );
 };
