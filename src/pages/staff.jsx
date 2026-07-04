@@ -34,6 +34,7 @@ const Staff = ({ dateRange }) => {
   const { data: staffData } = useApi(() => api.staffPerformance(dateRange), deps);
   const { data: repeatData } = useApi(() => api.staffRepeatRate(dateRange), deps);
   const { data: unassigned } = useApi(() => api.unassignedServices(dateRange), deps);
+  const { data: sharedBreakdown } = useApi(() => api.sharedProviderBreakdown(dateRange), deps);
 
   const repeatMap = useMemo(() => {
     if (!repeatData?.length) return {};
@@ -174,6 +175,37 @@ const Staff = ({ dateRange }) => {
           </div>
         </Card>
       </div>
+
+      {(sharedBreakdown ?? []).some((g) => g.total_count > 0) && (
+        <div className="z-2col">
+          {(sharedBreakdown ?? [])
+            .filter((g) => g.total_count > 0)
+            .map((group) => {
+              const maxPersonRev = Math.max(...group.people.map((p) => p.revenue), 1);
+              return (
+                <Card
+                  key={group.provider_id}
+                  eyebrow="¿Quién atendió?"
+                  title={group.category}
+                  info="Estas cuentas las comparten varias personas; quién atendió se identifica por el nombre escrito en la nota de la cita (ej. 'Atiende Chio'). Los servicios cuya nota no menciona a nadie conocido quedan como No asignados."
+                >
+                  {group.people.map((p, i) => (
+                    <RankRow
+                      key={p.name}
+                      rank={i + 1}
+                      label={p.name}
+                      sublabel={p.count + ' servicios'}
+                      value={money(p.revenue)}
+                      ratio={p.revenue / maxPersonRev}
+                      color={p.name === 'No asignados' ? 'var(--chart-compare)' : CHART[i % CHART.length]}
+                      last={i === group.people.length - 1}
+                    />
+                  ))}
+                </Card>
+              );
+            })}
+        </div>
+      )}
 
       <Card eyebrow="Servicios" title="Volumen por persona">
         <BarChart
