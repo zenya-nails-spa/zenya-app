@@ -45,15 +45,137 @@ function currentMonthValue() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-const CIERRE_COLS = [
-  { key: 'semana', label: 'Semana' },
-  { key: 'ing_efectivo', label: 'Ingresos efectivo', align: 'right' },
-  { key: 'ing_tarjeta', label: 'Ingresos tarjeta', align: 'right' },
-  { key: 'gas_efectivo', label: 'Gastos efectivo', align: 'right' },
-  { key: 'gas_tarjeta', label: 'Gastos débito', align: 'right' },
-  { key: 'esp_efectivo', label: 'Deberíamos tener (efectivo)', align: 'right' },
-  { key: 'esp_tarjeta', label: 'Deberíamos tener (tarjeta)', align: 'right' },
-];
+const CIERRE_TH_GROUP = {
+  textAlign: 'center',
+  padding: '8px 14px 2px',
+  fontSize: 'var(--text-xs)',
+  fontWeight: 'var(--fw-semibold)',
+  letterSpacing: 'var(--ls-label)',
+  textTransform: 'uppercase',
+  color: 'var(--text-muted)',
+  background: 'var(--surface-sunken)',
+  whiteSpace: 'nowrap',
+};
+
+const CIERRE_TH_SUB = {
+  textAlign: 'right',
+  padding: '2px 14px 8px',
+  fontSize: 'var(--text-xs)',
+  fontWeight: 'var(--fw-regular)',
+  color: 'var(--text-muted)',
+  background: 'var(--surface-sunken)',
+  borderBottom: '1px solid var(--border-subtle)',
+  whiteSpace: 'nowrap',
+};
+
+const CIERRE_SEP = { borderLeft: '1px solid var(--border-subtle)' };
+
+const cierreNum = (v, tone) =>
+  !v ? (
+    <span style={{ color: 'var(--text-muted)' }}>—</span>
+  ) : tone === 'negative' ? (
+    <span style={{ color: 'var(--negative)' }}>−{money(v)}</span>
+  ) : (
+    money(v)
+  );
+
+const calcRows = (w, tipo) => {
+  const ef = tipo === 'efectivo';
+  const rows = [
+    [w.base_origen, money(ef ? w.base_efectivo : w.base_tarjeta)],
+    [`+ Ingresos ${tipo}`, money(ef ? w.ingresos.efectivo : w.ingresos.tarjeta)],
+    [ef ? '− Gastos efectivo' : '− Gastos débito', money(ef ? w.gastos.efectivo : w.gastos.tarjeta)],
+  ];
+  if (w.transferencias) rows.push([`${ef ? '−' : '+'} Transferencias C y B`, money(w.transferencias)]);
+  return rows;
+};
+
+/** Bold esperado value that reveals the calculation breakdown on hover. */
+const CalcTip = ({ value, rows, drop = false }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          all: 'unset',
+          fontWeight: 700,
+          color: value >= 0 ? 'var(--positive)' : 'var(--negative)',
+          borderBottom: '1px dashed var(--border-strong)',
+          cursor: 'help',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {money(value)}
+      </button>
+      {open && (
+        <span
+          role="tooltip"
+          style={{
+            position: 'absolute',
+            ...(drop ? { top: 'calc(100% + 8px)' } : { bottom: 'calc(100% + 8px)' }),
+            right: -8,
+            zIndex: 50,
+            width: 250,
+            padding: '12px 14px',
+            background: 'var(--text-heading)',
+            color: 'var(--surface-card)',
+            borderRadius: 'var(--radius-sm)',
+            boxShadow: 'var(--shadow-md)',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 400,
+            lineHeight: 1.7,
+            display: 'block',
+            textAlign: 'left',
+            whiteSpace: 'normal',
+          }}
+        >
+          {rows.map(([label, amount], i) => (
+            <span key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+              <span style={{ opacity: 0.8 }}>{label}</span>
+              <span style={{ fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{amount}</span>
+            </span>
+          ))}
+          <span style={{ display: 'block', borderTop: '1px solid rgba(255, 255, 255, 0.3)', margin: '6px 0' }} />
+          <span style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontWeight: 600 }}>
+            <span>= Deberíamos tener</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{money(value)}</span>
+          </span>
+        </span>
+      )}
+    </span>
+  );
+};
+
+/** Sheet-counted amount plus a small delta against the computed esperado. */
+const TieneCell = ({ value, esperado }) => {
+  if (value == null) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+  const diff = Math.round(value - esperado);
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+      <span style={{ fontWeight: 600, color: 'var(--text-heading)', fontVariantNumeric: 'tabular-nums' }}>
+        {money(value)}
+      </span>
+      <span
+        style={{
+          fontSize: 'var(--text-xs)',
+          color: diff === 0 ? 'var(--positive)' : diff > 0 ? 'var(--positive)' : 'var(--negative)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {diff === 0 ? '✓ cuadra' : `${diff > 0 ? '+' : '−'}${money(Math.abs(diff))}`}
+      </span>
+    </span>
+  );
+};
 
 const Gastos = () => {
   const [month, setMonth] = useState(currentMonthValue());
@@ -265,37 +387,95 @@ const Gastos = () => {
         <Card
           eyebrow="Corte"
           title="Cierre de caja semanal"
-          info="El mes se divide en 4 semanas: la semana 1 va del día 1 al primer domingo (si el mes empieza después de miércoles, se extiende al segundo domingo); las siguientes van de lunes a domingo y la semana 4 termina el último día del mes. La semana 1 arranca con la base de inicio de mes: el efectivo con que abre la caja y el saldo de la cuenta. Ingresos vienen de las ventas: efectivo = pagos en cash; tarjeta = todo lo demás (débito, terminal, crédito, transferencias, online). Se restan los gastos de esa semana según su fuente: Efectivo sale de caja, Débito de la cuenta. Lo pagado con Crédito, Carlos o Bety no sale de caja y no se resta."
+          info="El mes se divide en 4 semanas: la semana 1 va del día 1 al primer domingo (si el mes empieza después de miércoles, se extiende al segundo domingo); las siguientes van de lunes a domingo y la semana 4 termina el último día del mes. La semana 1 arranca con la base de inicio de mes; las siguientes arrancan con el LO QUE SE TIENE que contaron al corte de la semana anterior (si aún no está en la hoja, se usa el esperado calculado). Ingresos vienen de las ventas: efectivo = pagos en cash; tarjeta = todo lo demás (débito, terminal, crédito, transferencias, online). Se restan los gastos de esa semana según su fuente: Efectivo sale de caja, Débito de la cuenta; lo pagado con Crédito, Carlos o Bety no sale de caja y no se resta. Las Transferencias de Carlos y Bety mueven efectivo de la caja a la cuenta: se restan de efectivo y se suman a tarjeta en la semana de su fecha. LO QUE SE TIENE es lo que ustedes contaron en la hoja, solo de referencia."
         >
-          <DataTable
-            columns={CIERRE_COLS}
-            rows={cierre.weeks.map((w) => ({
-              semana: `${w.semana} (${w.from_date.slice(8)} – ${w.to_date.slice(8)})`,
-              ing_efectivo: w.ingresos.efectivo,
-              ing_tarjeta: w.ingresos.tarjeta,
-              gas_efectivo: w.gastos.efectivo,
-              gas_tarjeta: w.gastos.tarjeta,
-              esp_efectivo: w.esperado_efectivo,
-              esp_tarjeta: w.esperado_tarjeta,
-            }))}
-            renderCell={(row, key) => {
-              if (key === 'semana')
-                return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.semana}</span>;
-              if (key === 'esp_efectivo' || key === 'esp_tarjeta')
-                return (
-                  <span
-                    style={{
-                      fontWeight: 700,
-                      color: row[key] >= 0 ? 'var(--positive)' : 'var(--negative)',
-                    }}
+          <div style={{ overflowX: 'auto' }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--text-sm)',
+              }}
+            >
+              <thead>
+                <tr>
+                  <th rowSpan={2} style={{ ...CIERRE_TH_GROUP, textAlign: 'left', verticalAlign: 'bottom' }}>
+                    Semana
+                  </th>
+                  <th colSpan={2} style={CIERRE_TH_GROUP}>
+                    Ingresos
+                  </th>
+                  <th colSpan={2} style={{ ...CIERRE_TH_GROUP, ...CIERRE_SEP }}>
+                    Gastos
+                  </th>
+                  <th
+                    rowSpan={2}
+                    style={{ ...CIERRE_TH_GROUP, ...CIERRE_SEP, textAlign: 'right', verticalAlign: 'bottom' }}
                   >
-                    {money(row[key])}
-                  </span>
-                );
-              if (key.startsWith('gas_')) return <span style={{ color: 'var(--negative)' }}>−{money(row[key])}</span>;
-              return money(row[key]);
-            }}
-          />
+                    Transf.
+                    <br />C y B
+                  </th>
+                  <th colSpan={2} style={{ ...CIERRE_TH_GROUP, ...CIERRE_SEP, color: 'var(--text-brand)' }}>
+                    Deberíamos tener
+                  </th>
+                  <th colSpan={2} style={{ ...CIERRE_TH_GROUP, ...CIERRE_SEP }}>
+                    Lo que se tiene
+                  </th>
+                </tr>
+                <tr>
+                  {['Efectivo', 'Tarjeta', 'Efectivo', 'Débito', 'Efectivo', 'Tarjeta', 'Efectivo', 'Tarjeta'].map(
+                    (label, i) => (
+                      <th key={i} style={{ ...CIERRE_TH_SUB, ...(i % 2 === 0 && i > 0 ? CIERRE_SEP : {}) }}>
+                        {label}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {cierre.weeks.map((w, i) => {
+                  const td = (extra = {}) => ({
+                    textAlign: 'right',
+                    padding: '12px 14px',
+                    color: 'var(--text-body)',
+                    verticalAlign: 'middle',
+                    fontVariantNumeric: 'tabular-nums',
+                    whiteSpace: 'nowrap',
+                    borderBottom: i < cierre.weeks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                    ...extra,
+                  });
+                  return (
+                    <tr key={w.semana} className="z-row">
+                      <td style={td({ textAlign: 'left' })}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{w.semana}</span>
+                        <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                          {w.from_date.slice(8)} – {w.to_date.slice(8)}
+                        </span>
+                      </td>
+                      <td style={td()}>{cierreNum(w.ingresos.efectivo)}</td>
+                      <td style={td()}>{cierreNum(w.ingresos.tarjeta)}</td>
+                      <td style={td(CIERRE_SEP)}>{cierreNum(w.gastos.efectivo, 'negative')}</td>
+                      <td style={td()}>{cierreNum(w.gastos.tarjeta, 'negative')}</td>
+                      <td style={td(CIERRE_SEP)}>{cierreNum(w.transferencias)}</td>
+                      <td style={td(CIERRE_SEP)}>
+                        <CalcTip value={w.esperado_efectivo} rows={calcRows(w, 'efectivo')} drop={i < 2} />
+                      </td>
+                      <td style={td()}>
+                        <CalcTip value={w.esperado_tarjeta} rows={calcRows(w, 'tarjeta')} drop={i < 2} />
+                      </td>
+                      <td style={td(CIERRE_SEP)}>
+                        <TieneCell value={w.lo_que_se_tiene_efectivo} esperado={w.esperado_efectivo} />
+                      </td>
+                      <td style={td()}>
+                        <TieneCell value={w.lo_que_se_tiene_tarjeta} esperado={w.esperado_tarjeta} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           <div
             style={{
               display: 'flex',
