@@ -86,6 +86,34 @@ const Gastos = () => {
   const byColaborador = data?.by_colaborador ?? [];
   const maxColab = byColaborador.length ? Math.max(...byColaborador.map((c) => c.total)) : 1;
 
+  const weeks = cierre?.weeks ?? [];
+  const weekPivot = (key) => {
+    const labels = [...new Set(weeks.flatMap((w) => w[key].map((b) => b.label)))];
+    return {
+      columns: [
+        { key: 'semana', label: 'Semana' },
+        ...labels.map((l) => ({ key: l, label: l, align: 'right' })),
+        { key: '__total', label: 'Total', align: 'right' },
+      ],
+      rows: weeks.map((w) => ({
+        semana: `${w.semana} (${w.from_date.slice(8)} – ${w.to_date.slice(8)})`,
+        ...Object.fromEntries(w[key].map((b) => [b.label, b.total])),
+        __total: w[key].reduce((s, b) => s + b.total, 0),
+      })),
+      hasData: weeks.some((w) => w[key].length > 0),
+    };
+  };
+  const egresosSemana = weekPivot('egresos_por_fuente');
+  const insumosSemana = weekPivot('insumos_por_tipo');
+
+  const renderPivotCell = (row, key) => {
+    if (key === 'semana') return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.semana}</span>;
+    if (row[key] == null) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+    if (key === '__total')
+      return <span style={{ fontWeight: 700, color: 'var(--text-display)' }}>{money(row[key])}</span>;
+    return money(row[key]);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -237,7 +265,7 @@ const Gastos = () => {
         <Card
           eyebrow="Corte"
           title="Cierre de caja semanal"
-          info="El mes se divide en 4 semanas (lunes a domingo; la semana 1 absorbe los días sueltos del inicio y la 4 los del final). Ingresos vienen de las ventas: efectivo = pagos en cash; tarjeta = todo lo demás (débito, terminal, crédito, transferencias, online). Se restan los gastos de esa semana según su fuente: Efectivo sale de caja, Débito de la cuenta. Lo pagado con Crédito, Carlos o Bety no sale de caja y no se resta."
+          info="El mes se divide en 4 semanas: la semana 1 va del día 1 al primer domingo (si el mes empieza después de miércoles, se extiende al segundo domingo); las siguientes van de lunes a domingo y la semana 4 termina el último día del mes. La semana 1 arranca con la base de inicio de mes: el efectivo con que abre la caja y el saldo de la cuenta. Ingresos vienen de las ventas: efectivo = pagos en cash; tarjeta = todo lo demás (débito, terminal, crédito, transferencias, online). Se restan los gastos de esa semana según su fuente: Efectivo sale de caja, Débito de la cuenta. Lo pagado con Crédito, Carlos o Bety no sale de caja y no se resta."
         >
           <DataTable
             columns={CIERRE_COLS}
@@ -280,6 +308,11 @@ const Gastos = () => {
             }}
           >
             <span>
+              Base de inicio de mes (sumada en Semana 1): efectivo{' '}
+              <strong style={{ color: 'var(--text-display)' }}>{money(cierre.base_efectivo)}</strong> · tarjeta{' '}
+              <strong style={{ color: 'var(--text-display)' }}>{money(cierre.base_tarjeta)}</strong>
+            </span>
+            <span>
               Ingresos del mes:{' '}
               <strong style={{ color: 'var(--text-display)' }}>{money(cierre.total_ingresos.total)}</strong> (efectivo{' '}
               {money(cierre.total_ingresos.efectivo)} · tarjeta {money(cierre.total_ingresos.tarjeta)})
@@ -290,6 +323,33 @@ const Gastos = () => {
             </span>
           </div>
         </Card>
+      )}
+
+      {(egresosSemana.hasData || insumosSemana.hasData) && (
+        <div className="z-2col">
+          <Card
+            eyebrow="Semanal"
+            title="Egresos por fuente de pago"
+            info="Total de egresos de cada semana desglosado por fuente de pago. Los pagos de servicios fijos (sin semana en la hoja) no aparecen aquí."
+          >
+            {egresosSemana.hasData ? (
+              <DataTable columns={egresosSemana.columns} rows={egresosSemana.rows} renderCell={renderPivotCell} />
+            ) : (
+              <EmptyState />
+            )}
+          </Card>
+          <Card
+            eyebrow="Semanal"
+            title="Insumos por tipo"
+            info="Total de insumos de cada semana desglosado por fuente de pago (columna Tipo de la hoja)."
+          >
+            {insumosSemana.hasData ? (
+              <DataTable columns={insumosSemana.columns} rows={insumosSemana.rows} renderCell={renderPivotCell} />
+            ) : (
+              <EmptyState />
+            )}
+          </Card>
+        </div>
       )}
 
       {byColaborador.length > 0 && (
