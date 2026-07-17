@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApi } from '../hooks/use-api';
@@ -44,16 +44,6 @@ function currentMonthValue() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
-
-const CIERRE_COLS = [
-  { key: 'semana', label: 'Semana' },
-  { key: 'ing_efectivo', label: 'Ingresos efectivo', align: 'right' },
-  { key: 'ing_tarjeta', label: 'Ingresos tarjeta', align: 'right' },
-  { key: 'gas_efectivo', label: 'Gastos efectivo', align: 'right' },
-  { key: 'gas_tarjeta', label: 'Gastos débito', align: 'right' },
-  { key: 'esp_efectivo', label: 'Deberíamos tener (efectivo)', align: 'right' },
-  { key: 'esp_tarjeta', label: 'Deberíamos tener (tarjeta)', align: 'right' },
-];
 
 const Gastos = () => {
   const [month, setMonth] = useState(currentMonthValue());
@@ -265,37 +255,117 @@ const Gastos = () => {
         <Card
           eyebrow="Corte"
           title="Cierre de caja semanal"
-          info="El mes se divide en 4 semanas: la semana 1 va del día 1 al primer domingo (si el mes empieza después de miércoles, se extiende al segundo domingo); las siguientes van de lunes a domingo y la semana 4 termina el último día del mes. La semana 1 arranca con la base de inicio de mes: el efectivo con que abre la caja y el saldo de la cuenta. Ingresos vienen de las ventas: efectivo = pagos en cash; tarjeta = todo lo demás (débito, terminal, crédito, transferencias, online). Se restan los gastos de esa semana según su fuente: Efectivo sale de caja, Débito de la cuenta. Lo pagado con Crédito, Carlos o Bety no sale de caja y no se resta."
+          info="El mes se divide en 4 semanas: la semana 1 va del día 1 al primer domingo (si el mes empieza después de miércoles, se extiende al segundo domingo); las siguientes van de lunes a domingo y la semana 4 termina el último día del mes. La semana 1 arranca con la base de inicio de mes; las siguientes arrancan con el LO QUE SE TIENE que contaron al corte de la semana anterior (si aún no está en la hoja, se usa el esperado calculado). Ingresos vienen de las ventas: efectivo = pagos en cash; tarjeta = todo lo demás (débito, terminal, crédito, transferencias, online). Se restan los gastos de esa semana según su fuente: Efectivo sale de caja, Débito de la cuenta; lo pagado con Crédito, Carlos o Bety no sale de caja y no se resta. Las Transferencias de Carlos y Bety mueven efectivo de la caja a la cuenta: se restan de efectivo y se suman a tarjeta en la semana de su fecha. LO QUE SE TIENE es lo que ustedes contaron en la hoja, solo de referencia."
         >
-          <DataTable
-            columns={CIERRE_COLS}
-            rows={cierre.weeks.map((w) => ({
-              semana: `${w.semana} (${w.from_date.slice(8)} – ${w.to_date.slice(8)})`,
-              ing_efectivo: w.ingresos.efectivo,
-              ing_tarjeta: w.ingresos.tarjeta,
-              gas_efectivo: w.gastos.efectivo,
-              gas_tarjeta: w.gastos.tarjeta,
-              esp_efectivo: w.esperado_efectivo,
-              esp_tarjeta: w.esperado_tarjeta,
-            }))}
-            renderCell={(row, key) => {
-              if (key === 'semana')
-                return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.semana}</span>;
-              if (key === 'esp_efectivo' || key === 'esp_tarjeta')
-                return (
-                  <span
-                    style={{
-                      fontWeight: 700,
-                      color: row[key] >= 0 ? 'var(--positive)' : 'var(--negative)',
-                    }}
-                  >
-                    {money(row[key])}
-                  </span>
-                );
-              if (key.startsWith('gas_')) return <span style={{ color: 'var(--negative)' }}>−{money(row[key])}</span>;
-              return money(row[key]);
-            }}
-          />
+          <div style={{ overflowX: 'auto' }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--text-sm)',
+              }}
+            >
+              <thead>
+                <tr>
+                  {[
+                    ['Semana', 'left'],
+                    ['Ingresos efectivo', 'right'],
+                    ['Ingresos tarjeta', 'right'],
+                    ['Gastos efectivo', 'right'],
+                    ['Gastos débito', 'right'],
+                    ['Transferencias C y B', 'right'],
+                    ['Deberíamos tener (efectivo)', 'right'],
+                    ['Deberíamos tener (tarjeta)', 'right'],
+                    ['Lo que se tiene (efectivo)', 'right'],
+                    ['Lo que se tiene (tarjeta)', 'right'],
+                  ].map(([label, align]) => (
+                    <th
+                      key={label}
+                      style={{
+                        textAlign: align,
+                        padding: '8px 12px',
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 'var(--fw-semibold)',
+                        letterSpacing: 'var(--ls-label)',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-muted)',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        background: 'var(--surface-sunken)',
+                      }}
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cierre.weeks.map((w, i) => {
+                  const td = (align = 'right') => ({
+                    textAlign: align,
+                    padding: '10px 12px',
+                    color: 'var(--text-body)',
+                    verticalAlign: 'middle',
+                  });
+                  const esperado = (v) => (
+                    <span style={{ fontWeight: 700, color: v >= 0 ? 'var(--positive)' : 'var(--negative)' }}>
+                      {money(v)}
+                    </span>
+                  );
+                  const tiene = (v) =>
+                    v == null ? (
+                      <span style={{ color: 'var(--text-muted)' }}>—</span>
+                    ) : (
+                      <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{money(v)}</span>
+                    );
+                  const trf = w.transferencias;
+                  const nota =
+                    `Efectivo: ${money(w.base_efectivo)} (${w.base_origen.toLowerCase()}) + ${money(w.ingresos.efectivo)} ingresos − ${money(w.gastos.efectivo)} gastos` +
+                    (trf ? ` − ${money(trf)} transferencias` : '') +
+                    ` = ${money(w.esperado_efectivo)} · Tarjeta: ${money(w.base_tarjeta)} + ${money(w.ingresos.tarjeta)} ingresos − ${money(w.gastos.tarjeta)} gastos` +
+                    (trf ? ` + ${money(trf)} transferencias` : '') +
+                    ` = ${money(w.esperado_tarjeta)}`;
+                  return (
+                    <Fragment key={w.semana}>
+                      <tr className="z-row">
+                        <td style={td('left')}>
+                          <span style={{ fontWeight: 600, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
+                            {w.semana} ({w.from_date.slice(8)} – {w.to_date.slice(8)})
+                          </span>
+                        </td>
+                        <td style={td()}>{money(w.ingresos.efectivo)}</td>
+                        <td style={td()}>{money(w.ingresos.tarjeta)}</td>
+                        <td style={td()}>
+                          <span style={{ color: 'var(--negative)' }}>−{money(w.gastos.efectivo)}</span>
+                        </td>
+                        <td style={td()}>
+                          <span style={{ color: 'var(--negative)' }}>−{money(w.gastos.tarjeta)}</span>
+                        </td>
+                        <td style={td()}>{trf ? money(trf) : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                        <td style={td()}>{esperado(w.esperado_efectivo)}</td>
+                        <td style={td()}>{esperado(w.esperado_tarjeta)}</td>
+                        <td style={td()}>{tiene(w.lo_que_se_tiene_efectivo)}</td>
+                        <td style={td()}>{tiene(w.lo_que_se_tiene_tarjeta)}</td>
+                      </tr>
+                      <tr>
+                        <td
+                          colSpan={10}
+                          style={{
+                            padding: '0 12px 10px',
+                            fontSize: 'var(--text-xs)',
+                            color: 'var(--text-muted)',
+                            borderBottom: i < cierre.weeks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                          }}
+                        >
+                          {nota}
+                        </td>
+                      </tr>
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           <div
             style={{
               display: 'flex',
