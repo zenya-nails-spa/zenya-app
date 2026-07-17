@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApi } from '../hooks/use-api';
 import StatCard from '../components/widgets/stat-card';
+import Button from '../components/ui/button';
 import Card from '../components/ui/card';
 import Donut from '../components/charts/donut';
 import BarChart from '../components/charts/bar-chart';
@@ -55,8 +57,29 @@ const CIERRE_COLS = [
 
 const Gastos = () => {
   const [month, setMonth] = useState(currentMonthValue());
-  const { data } = useApi(() => api.gastos({ month: `${month}-01` }), [month]);
-  const { data: cierre } = useApi(() => api.cierreSemanal({ month: `${month}-01` }), [month]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState(null);
+  const { data } = useApi(() => api.gastos({ month: `${month}-01` }), [month, refreshKey]);
+  const { data: cierre } = useApi(() => api.cierreSemanal({ month: `${month}-01` }), [month, refreshKey]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res = await api.syncGastos();
+      setSyncMsg(
+        res.status === 'ok'
+          ? `Hoja sincronizada: ${res.egresos_count} egresos y ${res.insumos_count} insumos`
+          : `Sin cambios: ${res.reason ?? res.status}`
+      );
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setSyncMsg('No se pudo sincronizar la hoja, intenta de nuevo');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const byFuente = data?.by_fuente ?? [];
   const bySemana = data?.by_semana ?? [];
@@ -65,7 +88,21 @@ const Gastos = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        {syncMsg && (
+          <span
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--text-sm)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            {syncMsg}
+          </span>
+        )}
+        <Button variant="secondary" size="sm" iconLeft={RefreshCw} onClick={handleSync} disabled={syncing}>
+          {syncing ? 'Actualizando…' : 'Actualizar desde la hoja'}
+        </Button>
         <input
           type="month"
           value={month}

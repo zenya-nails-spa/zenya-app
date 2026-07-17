@@ -51,6 +51,7 @@ export const api = {
   unassignedServices: (params) => get('/analytics/unassigned-services', params),
   sharedProviderBreakdown: (params) => get('/analytics/shared-provider-breakdown', params),
   gastos: (params) => get('/analytics/gastos', params),
+  syncGastos: () => post('/analytics/gastos/sync'),
   cierreSemanal: (params) => get('/analytics/cierre-semanal', params),
   clientProfiles: (params) => get('/analytics/client-profiles', params),
   clvSegments: (params) => get('/analytics/clv-segments', params),
