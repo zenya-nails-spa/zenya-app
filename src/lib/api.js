@@ -78,4 +78,5 @@ export const api = {
   updateWhatsappTemplate: (id, body) => put(`/whatsapp/templates/${id}`, body),
   createWhatsappSend: (body) => post('/whatsapp/campaign-sends', body),
   whatsappCampaignStatus: () => get('/whatsapp/campaign-status'),
+  appointmentReminders: () => get('/whatsapp/appointment-reminders'),
 };
