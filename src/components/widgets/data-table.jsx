@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 const SortArrows = ({ dir }) => (
   <span
@@ -17,7 +17,7 @@ const SortArrows = ({ dir }) => (
   </span>
 );
 
-const DataTable = ({ columns = [], rows = [], renderCell, style }) => {
+const DataTable = ({ columns = [], rows = [], renderCell, style, onSortedRowsChange }) => {
   const [sort, setSort] = useState(null); // { key, dir: 'asc' | 'desc' }
 
   const handleHeaderClick = (col) => {
@@ -45,6 +45,12 @@ const DataTable = ({ columns = [], rows = [], renderCell, style }) => {
       return (va - vb) * factor;
     });
   }, [rows, columns, sort]);
+
+  // Lets parent components (e.g. an export button) mirror exactly what's
+  // rendered, including the current sort order.
+  useEffect(() => {
+    onSortedRowsChange?.(sortedRows);
+  }, [sortedRows]);
 
   return (
     <div style={{ overflowX: 'auto', ...style }}>
