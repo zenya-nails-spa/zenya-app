@@ -71,4 +71,11 @@ export const api = {
   updateUserProfile: (body) => put('/me', body),
   products: () => get('/products'),
   paymentMethods: () => get('/payment-methods'),
+
+  // whatsapp reactivation campaigns
+  whatsappTemplates: (params) => get('/whatsapp/templates', params),
+  createWhatsappTemplate: (body) => post('/whatsapp/templates', body),
+  updateWhatsappTemplate: (id, body) => put(`/whatsapp/templates/${id}`, body),
+  createWhatsappSend: (body) => post('/whatsapp/campaign-sends', body),
+  whatsappCampaignStatus: () => get('/whatsapp/campaign-status'),
 };
