@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import ExcelJS from 'exceljs';
+import { Download } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApi } from '../hooks/use-api';
 import StatCard from '../components/widgets/stat-card';
@@ -8,8 +10,11 @@ import BarChart from '../components/charts/bar-chart';
 import DataTable from '../components/widgets/data-table';
 import Avatar from '../components/ui/avatar';
 import Badge from '../components/ui/badge';
+import Button from '../components/ui/button';
+import Select from '../components/ui/select';
 import SegmentedControl from '../components/ui/segmented-control';
 import InfoTip from '../components/ui/info-tip';
+import ReactivationPanel from '../components/widgets/reactivation-panel';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
@@ -18,13 +23,31 @@ const pct = (v) => (v != null ? Math.round(v * 100) + '%' : '—');
 const TABS = [
   { value: 'directorio', label: 'Directorio' },
   { value: 'retencion', label: 'Retención' },
+  { value: 'reactivacion', label: 'Reactivación' },
   { value: 'clv', label: 'CLV & Segmentos' },
 ];
 
 const ESTADO_RANK = { active: 0, activa: 0, at_risk: 1, en_riesgo: 1, churned: 2, perdida: 2, lost: 2 };
+const ESTADO_LABEL = {
+  active: 'Activa',
+  activa: 'Activa',
+  at_risk: 'En riesgo',
+  en_riesgo: 'En riesgo',
+  churned: 'Perdida',
+  perdida: 'Perdida',
+  lost: 'Perdida',
+};
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'Todas' },
+  { value: 'active', label: 'Activa' },
+  { value: 'at_risk', label: 'En riesgo' },
+  { value: 'churned', label: 'Perdida' },
+];
 
 const RETENTION_COLS = [
   { key: 'name', label: 'Clienta' },
+  { key: 'phone', label: 'Teléfono' },
   { key: 'last_visit', label: 'Última visita' },
   {
     key: 'days_since',
@@ -56,14 +79,55 @@ const RETENTION_COLS = [
   },
 ];
 
+const SEGMENT_RANK = { VIP: 0, Leal: 1, Ocasional: 2, 'En riesgo': 3, Perdida: 4 };
+
 const VIP_COLS = [
-  { key: 'name', label: 'Clienta' },
-  { key: 'segment', label: 'Segmento' },
-  { key: 'total_visits', label: 'Visitas', align: 'right' },
-  { key: 'lifetime_revenue', label: 'Ingresos totales', align: 'right' },
-  { key: 'avg_ticket', label: 'Ticket prom.', align: 'right' },
-  { key: 'last_visit', label: 'Última visita' },
-  { key: 'days_since', label: 'Días desde', align: 'right' },
+  {
+    key: 'name',
+    label: 'Clienta',
+    sortable: true,
+    sortValue: (r) => [r.first_name, r.last_name].filter(Boolean).join(' '),
+  },
+  {
+    key: 'segment',
+    label: 'Segmento',
+    sortable: true,
+    sortValue: (r) => SEGMENT_RANK[r.segment] ?? 5,
+  },
+  {
+    key: 'total_visits',
+    label: 'Visitas',
+    align: 'right',
+    sortable: true,
+    sortValue: (r) => r.total_visits ?? 0,
+  },
+  {
+    key: 'lifetime_revenue',
+    label: 'Ingresos totales',
+    align: 'right',
+    sortable: true,
+    sortValue: (r) => r.lifetime_revenue ?? 0,
+  },
+  {
+    key: 'avg_ticket',
+    label: 'Ticket prom.',
+    align: 'right',
+    sortable: true,
+    sortValue: (r) => r.avg_ticket ?? 0,
+  },
+  {
+    key: 'last_visit',
+    label: 'Última visita',
+    sortable: true,
+    sortValue: (r) => r.last_visit ?? '',
+  },
+  {
+    key: 'days_since',
+    label: 'Días desde',
+    align: 'right',
+    sortable: true,
+    sortValue: (r) => r.days_since_last,
+  },
 ];
 
 const SEG_TONE = { VIP: 'rose', Leal: 'lavender', Ocasional: 'caution', 'En riesgo': 'negative', Perdida: 'neutral' };
@@ -97,6 +161,10 @@ function estadoBadge(e) {
 const Clients = ({ dateRange }) => {
   const [tab, setTab] = useState('directorio');
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [retentionSearch, setRetentionSearch] = useState('');
+  const [retentionSortedRows, setRetentionSortedRows] = useState([]);
+  const [clvSegmentFilter, setClvSegmentFilter] = useState(null);
   const deps = [dateRange.from_date, dateRange.to_date];
 
   const { data: kpis } = useApi(() => api.kpis(dateRange), deps);
@@ -111,8 +179,10 @@ const Clients = ({ dateRange }) => {
     value: b.count,
   }));
   const totalActive = retention?.active_clients ?? 0;
-  const newClients = retention?.new_clients ?? kpis?.new_clients ?? 0;
-  const recurringClients = retention?.recurring_clients ?? kpis?.recurring_clients ?? 0;
+  const recurringClients = retention?.recurring_clients ?? 0;
+  // First-time buyers this period = active clients minus those who'd bought before —
+  // keeps the donut slices summing exactly to the "Total clientes" figure above.
+  const newClients = Math.max(totalActive - recurringClients, 0);
 
   const donutData = [
     { label: 'Nuevas', value: newClients, color: 'var(--chart-1)' },
@@ -132,8 +202,71 @@ const Clients = ({ dateRange }) => {
       perdidas: all.filter((p) => p.churn_status === 'churned' || p.churn_status === 'lost').length,
       reactivadas: retention?.reactivated_clients ?? 0,
       retencionPct: retention?.retention_rate ?? null,
+      recurrentesPct: retention?.recurring_clients_pct ?? null,
+      nuevasPct: retention?.new_clients_pct ?? null,
+      retencionHistoricaPct: retention?.historical_retention_rate ?? null,
     };
   }, [profilesData, retention]);
+
+  const filteredRetentionProfiles = useMemo(() => {
+    let rows = retentionProfiles;
+    if (statusFilter !== 'all') {
+      rows = rows.filter((p) => p.churn_status === statusFilter);
+    }
+    const q = retentionSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((p) => {
+        const name = [p.first_name, p.last_name].filter(Boolean).join(' ').toLowerCase();
+        return name.includes(q) || (p.phone ?? '').toLowerCase().includes(q);
+      });
+    }
+    return rows;
+  }, [retentionProfiles, statusFilter, retentionSearch]);
+
+  const exportRetentionToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Retención');
+    sheet.columns = [
+      { header: 'Clienta', key: 'name', width: 28 },
+      { header: 'Teléfono', key: 'phone', width: 16 },
+      { header: 'Última visita', key: 'last_visit', width: 14 },
+      { header: 'Días sin visitar', key: 'days_since_last', width: 16 },
+      { header: 'Frecuencia (días)', key: 'avg_frequency', width: 16 },
+      { header: 'Estado', key: 'estado', width: 14 },
+      { header: 'Ingresos totales', key: 'lifetime_revenue', width: 16 },
+      { header: 'Ingreso perdido', key: 'estimated_lost', width: 16 },
+    ];
+    // retentionSortedRows mirrors the table's current sort, but DataTable unmounts
+    // when the filtered set is empty, so it can go stale — the length check catches that.
+    const rows =
+      retentionSortedRows.length === filteredRetentionProfiles.length ? retentionSortedRows : filteredRetentionProfiles;
+    rows.forEach((r) => {
+      sheet.addRow({
+        name: [r.first_name, r.last_name].filter(Boolean).join(' ') || '—',
+        phone: r.phone || '—',
+        last_visit: r.last_visit || '—',
+        days_since_last: r.days_since_last ?? null,
+        avg_frequency: r.avg_frequency ?? null,
+        estado: ESTADO_LABEL[r.churn_status] ?? r.churn_status,
+        lifetime_revenue: r.lifetime_revenue ?? 0,
+        estimated_lost: r.estimated_lost ?? 0,
+      });
+    });
+    sheet.getRow(1).font = { bold: true };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `retencion-clientas-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const churnBuckets = useMemo(() => {
     const all = profilesData ?? [];
@@ -153,6 +286,10 @@ const Clients = ({ dateRange }) => {
   }, [clvData]);
   const clvTotal = clvSegments.reduce((s, c) => s + (c.revenue ?? 0), 0);
   const vipClients = clvData?.top_clients ?? [];
+  const filteredVipClients = useMemo(
+    () => (clvSegmentFilter ? vipClients.filter((c) => c.segment === clvSegmentFilter) : vipClients),
+    [vipClients, clvSegmentFilter]
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -198,7 +335,7 @@ const Clients = ({ dateRange }) => {
             <Card
               eyebrow="Segmentación"
               title="Lealtad de clientas"
-              info="Nuevas: clientas registradas durante el periodo. Recurrentes: clientas que compraron en el periodo y ya habían comprado antes. El centro muestra el total de clientas activas del periodo."
+              info="Nuevas: su primera compra registrada fue en este periodo. Recurrentes: compraron en el periodo y ya habían comprado antes. El centro muestra el total de clientas activas del periodo (nuevas + recurrentes)."
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
                 <Donut
@@ -373,15 +510,66 @@ const Clients = ({ dateRange }) => {
             />
           </div>
 
+          <div className="z-status-row">
+            <StatCard
+              label="Retención histórica"
+              value={retentionKpis.retencionHistoricaPct != null ? pct(retentionKpis.retencionHistoricaPct) : '—'}
+              caption="promedio mes a mes"
+              icon="BarChart2"
+              info="Promedio de la retención mes contra mes anterior a lo largo de todo tu historial, no solo el mes en curso. Da una idea de tu retención típica de largo plazo."
+              numeralStyle="sans"
+            />
+            <StatCard
+              label="Recurrentes"
+              value={retentionKpis.recurrentesPct != null ? pct(retentionKpis.recurrentesPct) : '—'}
+              caption="del periodo"
+              icon="CheckCircle"
+              info="De las clientas que compraron en el periodo seleccionado, porcentaje que ya era clienta antes (había comprado previamente)."
+              numeralStyle="sans"
+            />
+            <StatCard
+              label="Nuevas"
+              value={retentionKpis.nuevasPct != null ? pct(retentionKpis.nuevasPct) : '—'}
+              caption="del periodo"
+              icon="Sparkles"
+              info="De las clientas que compraron en el periodo seleccionado, porcentaje cuya primera compra registrada fue dentro de este periodo."
+              numeralStyle="sans"
+            />
+          </div>
+
           <Card
             eyebrow="Riesgo de fuga"
             title="Clasificación de clientas"
             info="Toda clienta que ha comprado alguna vez, clasificada por su última visita: Activa (menos de 45 días), En riesgo (45–89) o Perdida (90+). Ingreso perdido estima cuánto dejó de gastar según su ticket promedio y el tiempo ausente. Haz clic en los encabezados para ordenar."
+            action={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <input
+                  placeholder="Buscar por nombre o teléfono..."
+                  value={retentionSearch}
+                  onChange={(e) => setRetentionSearch(e.target.value)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border-subtle)',
+                    fontSize: 'var(--text-sm)',
+                    fontFamily: 'var(--font-sans)',
+                    background: 'var(--surface-card)',
+                    color: 'var(--text-body)',
+                    height: 30,
+                  }}
+                />
+                <Select size="sm" value={statusFilter} onChange={setStatusFilter} options={STATUS_FILTER_OPTIONS} />
+                <Button variant="secondary" size="sm" iconLeft={Download} onClick={exportRetentionToExcel}>
+                  Exportar
+                </Button>
+              </div>
+            }
           >
-            {retentionProfiles.length > 0 ? (
+            {filteredRetentionProfiles.length > 0 ? (
               <DataTable
                 columns={RETENTION_COLS}
-                rows={retentionProfiles}
+                rows={filteredRetentionProfiles}
+                onSortedRowsChange={setRetentionSortedRows}
                 renderCell={(row, key) => {
                   if (key === 'name') {
                     const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || '—';
@@ -392,6 +580,8 @@ const Clients = ({ dateRange }) => {
                       </div>
                     );
                   }
+                  if (key === 'phone')
+                    return <span style={{ color: 'var(--text-secondary)' }}>{row.phone ?? '—'}</span>;
                   if (key === 'last_visit')
                     return <span style={{ color: 'var(--text-secondary)' }}>{row.last_visit ?? '—'}</span>;
                   if (key === 'days_since') {
@@ -430,7 +620,7 @@ const Clients = ({ dateRange }) => {
                   fontSize: 'var(--text-sm)',
                 }}
               >
-                Sin datos de retención
+                {retentionProfiles.length > 0 ? 'Sin resultados para estos filtros' : 'Sin datos de retención'}
               </div>
             )}
           </Card>
@@ -481,6 +671,9 @@ const Clients = ({ dateRange }) => {
         </>
       )}
 
+      {/* ── REACTIVACIÓN TAB ── */}
+      {tab === 'reactivacion' && <ReactivationPanel profiles={profilesData} />}
+
       {/* ── CLV & SEGMENTOS TAB ── */}
       {tab === 'clv' && (
         <>
@@ -500,14 +693,24 @@ const Clients = ({ dateRange }) => {
                 />
                 <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 0 }}>
                   {clvSegments.map((s, i) => (
-                    <div
+                    <button
                       key={i}
+                      type="button"
+                      onClick={() => setClvSegmentFilter((prev) => (prev === s.segment ? null : s.segment))}
+                      title="Clic para filtrar la tabla de abajo por este segmento"
                       style={{
+                        all: 'unset',
+                        boxSizing: 'border-box',
+                        width: '100%',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 12,
-                        padding: '12px 0',
+                        padding: '12px 8px',
+                        margin: '0 -8px',
+                        borderRadius: 'var(--radius-xs)',
                         borderBottom: i < clvSegments.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                        cursor: 'pointer',
+                        background: clvSegmentFilter === s.segment ? 'var(--rose-50)' : 'transparent',
                       }}
                     >
                       <span style={{ width: 12, height: 12, borderRadius: 3, background: s.color, flexShrink: 0 }} />
@@ -553,7 +756,7 @@ const Clients = ({ dateRange }) => {
                           {clvTotal ? Math.round(((s.revenue ?? 0) / clvTotal) * 100) : 0}%
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -574,13 +777,20 @@ const Clients = ({ dateRange }) => {
 
           <Card
             eyebrow="Valor de vida"
-            title="Top 10 clientas VIP"
-            info="Las 10 clientas con mayores ingresos históricos. Ingresos totales suma todas sus compras desde su primera visita; el ticket promedio es su gasto típico por visita."
+            title={clvSegmentFilter ? `Clientas · ${clvSegmentFilter}` : 'Todas las clientas'}
+            info="Todas las clientas con al menos una compra, ordenadas por ingresos históricos. Da clic en un segmento de la izquierda para filtrar esta tabla, o en los encabezados para ordenar por cualquier columna."
+            action={
+              clvSegmentFilter && (
+                <Button variant="ghost" size="sm" onClick={() => setClvSegmentFilter(null)}>
+                  Ver todas ({vipClients.length})
+                </Button>
+              )
+            }
           >
-            {vipClients.length > 0 ? (
+            {filteredVipClients.length > 0 ? (
               <DataTable
                 columns={VIP_COLS}
-                rows={vipClients}
+                rows={filteredVipClients}
                 renderCell={(row, key) => {
                   if (key === 'name') {
                     const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || row.name || '—';
@@ -623,7 +833,7 @@ const Clients = ({ dateRange }) => {
                   fontSize: 'var(--text-sm)',
                 }}
               >
-                Sin datos de clientas VIP
+                {clvSegmentFilter ? `Sin clientas en el segmento ${clvSegmentFilter}` : 'Sin datos de clientas'}
               </div>
             )}
           </Card>
