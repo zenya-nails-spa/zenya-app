@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { MessageCircle, Plus, Edit2, Archive, Send } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useApi } from '../../hooks/use-api';
+import { buildWhatsappUrl } from '../../lib/whatsapp';
 import Card from '../ui/card';
 import Badge from '../ui/badge';
 import Button from '../ui/button';
@@ -19,18 +20,6 @@ const inputStyle = {
   color: 'var(--text-body)',
   background: 'var(--surface-card)',
 };
-
-function digitsOnly(phone) {
-  return (phone || '').replace(/\D/g, '');
-}
-
-function buildWhatsappUrl(phone, message) {
-  // web.whatsapp.com (rather than wa.me) so this reliably opens in Chrome —
-  // wa.me/api.whatsapp.com short links get intercepted by the WhatsApp
-  // Desktop app on macOS/Windows when it's installed, and that app's own
-  // emoji rendering is known to be unreliable.
-  return `https://web.whatsapp.com/send?phone=${digitsOnly(phone)}&text=${encodeURIComponent(message)}`;
-}
 
 function fillTemplate(body, firstName) {
   // Some AgendaPro records keep more than one word in first_name (or trailing

@@ -5,6 +5,7 @@ import StatCard from '../components/widgets/stat-card';
 import Card from '../components/ui/card';
 import DataTable from '../components/widgets/data-table';
 import ApptStatus from '../components/widgets/appt-status';
+import AppointmentReminders from '../components/widgets/appointment-reminders';
 import Badge from '../components/ui/badge';
 import { ChevronLeft, ChevronRight, CheckCircle, Clock, XCircle } from 'lucide-react';
 
@@ -352,6 +353,8 @@ const Appointments = () => {
           </Card>
         </div>
       </div>
+
+      <AppointmentReminders />
     </div>
   );
 };
