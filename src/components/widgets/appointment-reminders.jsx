@@ -106,6 +106,7 @@ const AppointmentReminders = () => {
   const [syncing, setSyncing] = useState(false);
   const [targetDate, setTargetDate] = useState(null);
   const [clients, setClients] = useState([]);
+  const [syncMessage, setSyncMessage] = useState(null); // { type: 'info' | 'error', text }
 
   const loadTemplate = async () => {
     const found = await api.whatsappTemplates({ category: 'reminder' });
@@ -163,18 +164,35 @@ const AppointmentReminders = () => {
 
   const handleSync = async () => {
     setSyncing(true);
+    setSyncMessage(null);
     try {
       const currentTemplate = templateLoaded ? template : await loadTemplate();
+      // Pulls fresh data from AgendaPro first, server-side — this call can take a while.
       const data = await api.appointmentReminders();
+      const freshClients = (data.clients ?? []).map((c) => ({
+        ...c,
+        name: [c.first_name, c.last_name].filter(Boolean).join(' ') || '—',
+      }));
+
+      // Anyone who was here before but isn't anymore got cancelled/moved off
+      // tomorrow — the fresh list from the server already reflects that, we
+      // just diff against what was showing to report how many are new.
+      const previousIds = new Set(clients.map((c) => c.client_id));
+      const newCount = freshClients.filter((c) => !previousIds.has(c.client_id)).length;
+
       setTargetDate(data.target_date);
-      setClients(
-        (data.clients ?? []).map((c) => ({
-          ...c,
-          name: [c.first_name, c.last_name].filter(Boolean).join(' ') || '—',
-        }))
-      );
+      setClients(freshClients);
       setSynced(true);
+      setSyncMessage({
+        type: 'info',
+        text:
+          newCount > 0
+            ? `${newCount} clienta${newCount === 1 ? '' : 's'} nueva${newCount === 1 ? '' : 's'} encontrada${newCount === 1 ? '' : 's'}`
+            : 'No se encontraron clientas nuevas',
+      });
       return currentTemplate;
+    } catch (err) {
+      setSyncMessage({ type: 'error', text: 'No se pudo sincronizar con AgendaPro. Intenta de nuevo.' });
     } finally {
       setSyncing(false);
     }
@@ -255,11 +273,24 @@ const AppointmentReminders = () => {
       <Card
         eyebrow="Citas"
         title="Recordatorios de mañana"
-        info="Trae las clientas con cita mañana (agrupando todas sus citas si tiene más de una) para mandarles su recordatorio por WhatsApp. El estatus se actualiza en cuanto le das clic a enviar."
+        info="Cada clic sincroniza con AgendaPro primero (puede tardar unos segundos) y luego trae las clientas con cita mañana, agrupando todas sus citas si tiene más de una. Si alguien canceló o movió su cita, desaparece sola de la lista. El estatus se actualiza en cuanto le das clic a enviar."
         action={
-          <Button variant="secondary" size="sm" iconLeft={RefreshCw} onClick={handleSync} disabled={syncing}>
-            {syncing ? 'Sincronizando...' : 'Sincronizar clientas de mañana'}
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {syncMessage && (
+              <span
+                style={{
+                  fontSize: 'var(--text-xs)',
+                  fontFamily: 'var(--font-sans)',
+                  color: syncMessage.type === 'error' ? 'var(--negative)' : 'var(--text-muted)',
+                }}
+              >
+                {syncMessage.text}
+              </span>
+            )}
+            <Button variant="secondary" size="sm" iconLeft={RefreshCw} onClick={handleSync} disabled={syncing}>
+              {syncing ? 'Sincronizando...' : 'Sincronizar clientas de mañana'}
+            </Button>
+          </div>
         }
       >
         {!synced ? (
