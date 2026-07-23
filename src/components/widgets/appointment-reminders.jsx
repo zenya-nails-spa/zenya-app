@@ -85,6 +85,8 @@ const EmptyState = ({ text }) => (
   </div>
 );
 
+const STORAGE_KEY = 'zenya.appointmentReminders.lastSync';
+
 const REMINDER_COLS = [
   { key: 'name', label: 'Clienta' },
   { key: 'phone', label: 'Teléfono' },
@@ -117,6 +119,27 @@ const AppointmentReminders = () => {
   useEffect(() => {
     loadTemplate();
   }, []);
+
+  // Restore the last sync from this browser so a page reload doesn't wipe the
+  // list — "ya enviado" status still comes fresh from the server either way,
+  // this just saves having to click "Sincronizar" again to see it.
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if (saved?.clients?.length) {
+        setTargetDate(saved.targetDate);
+        setClients(saved.clients);
+        setSynced(true);
+      }
+    } catch {
+      // ignore malformed/unavailable storage
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!synced) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ targetDate, clients }));
+  }, [synced, targetDate, clients]);
 
   const handleSaveTemplate = async () => {
     setSavingTemplate(true);
