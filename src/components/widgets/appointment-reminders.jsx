@@ -171,7 +171,9 @@ const AppointmentReminders = () => {
       const data = await api.appointmentReminders();
       const freshClients = (data.clients ?? []).map((c) => ({
         ...c,
-        name: [c.first_name, c.last_name].filter(Boolean).join(' ') || '—',
+        // A brand-new client's booking can sync before her client record does
+        // (separate daily syncs) — show something identifiable instead of "—".
+        name: [c.first_name, c.last_name].filter(Boolean).join(' ') || `Clienta nueva #${c.client_id}`,
       }));
 
       // Anyone who was here before but isn't anymore got cancelled/moved off
@@ -337,7 +339,11 @@ const AppointmentReminders = () => {
                     size="sm"
                     variant="soft"
                     title={
-                      !row.phone ? 'Sin teléfono' : !template ? 'Crea la plantilla primero' : 'Enviar recordatorio'
+                      !row.phone
+                        ? 'Sin teléfono todavía — probablemente es clienta nueva, sincroniza de nuevo en un rato'
+                        : !template
+                          ? 'Crea la plantilla primero'
+                          : 'Enviar recordatorio'
                     }
                     disabled={!row.phone || !template}
                     onClick={() => handleSend(row)}
