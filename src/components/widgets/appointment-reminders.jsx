@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Send } from 'lucide-react';
+import { RefreshCw, Send, Smartphone } from 'lucide-react';
 import { api } from '../../lib/api';
-import { buildWhatsappUrl } from '../../lib/whatsapp';
+import { buildWhatsappUrl, buildWhatsappAppUrl, TEST_RECIPIENTS } from '../../lib/whatsapp';
 import Card from '../ui/card';
 import Badge from '../ui/badge';
 import Button from '../ui/button';
@@ -85,6 +85,13 @@ const EmptyState = ({ text }) => (
   </div>
 );
 
+function sampleDetalleCita() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+  return buildDetalleCita([{ time: '12:00', service_name: 'Manicure de prueba' }], dateStr);
+}
+
 const STORAGE_KEY = 'zenya.appointmentReminders.lastSync';
 
 const REMINDER_COLS = [
@@ -107,6 +114,14 @@ const AppointmentReminders = () => {
   const [targetDate, setTargetDate] = useState(null);
   const [clients, setClients] = useState([]);
   const [syncMessage, setSyncMessage] = useState(null); // { type: 'info' | 'error', text }
+  const [testRecipient, setTestRecipient] = useState(TEST_RECIPIENTS[0].phone);
+
+  const handleTestSend = (urlBuilder) => {
+    if (!template) return;
+    const recipient = TEST_RECIPIENTS.find((r) => r.phone === testRecipient) ?? TEST_RECIPIENTS[0];
+    const message = fillReminderTemplate(template.body, sampleDetalleCita(), recipient.name);
+    window.open(urlBuilder(recipient.phone, message), '_blank', 'noopener');
+  };
 
   const loadTemplate = async () => {
     const found = await api.whatsappTemplates({ category: 'reminder' });
@@ -218,19 +233,50 @@ const AppointmentReminders = () => {
       <Card
         eyebrow="WhatsApp"
         title="Plantilla de recordatorio"
-        info="Se manda la noche antes de la cita. Usa {detalle_cita} para el bloque de fecha/hora/servicio (se genera solo, incluyendo todas las citas si la clienta tiene más de una) y {nombre} para su primer nombre."
+        info="Se manda la noche antes de la cita. Usa {detalle_cita} para el bloque de fecha/hora/servicio (se genera solo, incluyendo todas las citas si la clienta tiene más de una) y {nombre} para su primer nombre. Los botones de prueba mandan un mensaje de ejemplo a Bety o Carlos, uno abriendo Web y otro la app — para comparar si la app respeta los emojis antes de confiar en ella."
         action={
           !editing && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={async () => {
-                if (!templateLoaded) await loadTemplate();
-                setEditing(true);
-              }}
-            >
-              {template ? 'Editar' : 'Crear plantilla'}
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {template && (
+                <>
+                  <select
+                    value={testRecipient}
+                    onChange={(e) => setTestRecipient(e.target.value)}
+                    style={{ ...inputStyle, padding: '4px 8px', height: 30, fontSize: 'var(--text-xs)' }}
+                  >
+                    {TEST_RECIPIENTS.map((r) => (
+                      <option key={r.phone} value={r.phone}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                  <IconButton
+                    icon={Send}
+                    size="sm"
+                    variant="outline"
+                    title="Probar por Web (web.whatsapp.com)"
+                    onClick={() => handleTestSend(buildWhatsappUrl)}
+                  />
+                  <IconButton
+                    icon={Smartphone}
+                    size="sm"
+                    variant="outline"
+                    title="Probar por la app de WhatsApp (wa.me)"
+                    onClick={() => handleTestSend(buildWhatsappAppUrl)}
+                  />
+                </>
+              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  if (!templateLoaded) await loadTemplate();
+                  setEditing(true);
+                }}
+              >
+                {template ? 'Editar' : 'Crear plantilla'}
+              </Button>
+            </div>
           )
         }
       >
