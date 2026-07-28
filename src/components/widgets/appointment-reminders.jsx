@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Send, Smartphone } from 'lucide-react';
+import { RefreshCw, Send } from 'lucide-react';
 import { api } from '../../lib/api';
-import { buildWhatsappUrl, buildWhatsappAppUrl, TEST_RECIPIENTS } from '../../lib/whatsapp';
+import { buildWhatsappUrl, TEST_RECIPIENTS } from '../../lib/whatsapp';
 import Card from '../ui/card';
 import Badge from '../ui/badge';
 import Button from '../ui/button';
@@ -233,7 +233,7 @@ const AppointmentReminders = () => {
       <Card
         eyebrow="WhatsApp"
         title="Plantilla de recordatorio"
-        info="Se manda la noche antes de la cita. Usa {detalle_cita} para el bloque de fecha/hora/servicio (se genera solo, incluyendo todas las citas si la clienta tiene más de una) y {nombre} para su primer nombre. Los botones de prueba mandan un mensaje de ejemplo a Bety o Carlos, uno abriendo Web y otro la app — para comparar si la app respeta los emojis antes de confiar en ella."
+        info="Se manda la noche antes de la cita. Usa {detalle_cita} para el bloque de fecha/hora/servicio (se genera solo, incluyendo todas las citas si la clienta tiene más de una) y {nombre} para su primer nombre. El botón de prueba manda un mensaje de ejemplo a Bety o Carlos por WhatsApp Web para revisar cómo se ve antes de mandarlo de verdad."
         action={
           !editing && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -254,15 +254,8 @@ const AppointmentReminders = () => {
                     icon={Send}
                     size="sm"
                     variant="outline"
-                    title="Probar por Web (web.whatsapp.com)"
+                    title="Enviar mensaje de prueba"
                     onClick={() => handleTestSend(buildWhatsappUrl)}
-                  />
-                  <IconButton
-                    icon={Smartphone}
-                    size="sm"
-                    variant="outline"
-                    title="Probar por la app de WhatsApp (wa.me)"
-                    onClick={() => handleTestSend(buildWhatsappAppUrl)}
                   />
                 </>
               )}
