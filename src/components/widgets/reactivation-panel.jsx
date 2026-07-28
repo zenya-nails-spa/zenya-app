@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { MessageCircle, Plus, Edit2, Archive, Send } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useApi } from '../../hooks/use-api';
-import { buildWhatsappUrl } from '../../lib/whatsapp';
+import { buildWhatsappUrl, TEST_RECIPIENTS } from '../../lib/whatsapp';
 import Card from '../ui/card';
 import Badge from '../ui/badge';
 import Button from '../ui/button';
@@ -27,11 +27,6 @@ function fillTemplate(body, firstName) {
   const name = (firstName || '').trim().split(/\s+/)[0] || 'hola';
   return (body || '').replaceAll('{nombre}', name);
 }
-
-const TEST_RECIPIENTS = [
-  { name: 'Bety', phone: '522224714697' },
-  { name: 'Carlos', phone: '522222063234' },
-];
 
 function fmtDate(iso) {
   if (!iso) return '';
