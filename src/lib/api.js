@@ -79,4 +79,7 @@ export const api = {
   createWhatsappSend: (body) => post('/whatsapp/campaign-sends', body),
   whatsappCampaignStatus: () => get('/whatsapp/campaign-status'),
   appointmentReminders: () => get('/whatsapp/appointment-reminders'),
+  retouchReminders: () => get('/whatsapp/retouch-reminders'),
+  newClientFeedback: () => get('/whatsapp/new-client-feedback'),
+  dismissReminder: (body) => post('/whatsapp/dismissals', body),
 };
