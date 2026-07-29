@@ -7,6 +7,7 @@ import DataTable from '../components/widgets/data-table';
 import ApptStatus from '../components/widgets/appt-status';
 import AppointmentReminders from '../components/widgets/appointment-reminders';
 import ReminderCampaignPanel from '../components/widgets/reminder-campaign-panel';
+import ReminderEffectivenessCard from '../components/widgets/reminder-effectiveness-card';
 import Badge from '../components/ui/badge';
 import { ChevronLeft, ChevronRight, CheckCircle, Clock, XCircle } from 'lucide-react';
 
@@ -393,7 +394,7 @@ Será un placer atenderte 💕 Bonito día! ☺️`}
         templateInfo="Se manda a clientas cuya visita de hoy fue la primera vez que nos visitan. Usa {nombre} para su primer nombre."
         listEyebrow="Clientas nuevas"
         listTitle="Clientas nuevas de hoy"
-        listInfo="Cada clic sincroniza con AgendaPro primero y luego trae a las clientas cuya primera visita registrada con nosotras fue hoy."
+        listInfo="Cada clic sincroniza con AgendaPro primero y trae a las clientas cuya primera visita fue en los últimos 3 días. Se queda en la lista hasta que le mandes el mensaje o la quites manualmente con la ✕ — no desaparece sola."
         syncButtonLabel="Sincronizar clientas nuevas de hoy"
         defaultTemplateName="Encuesta clienta nueva"
         defaultTemplateBody={`¡Hola! 🌸
@@ -408,7 +409,10 @@ Tu experiencia es muy valiosa para nosotras y nos ayuda a seguir creando momento
         storageKey="zenya.newClientFeedback.lastSync"
         emptyBeforeSyncText='Da clic en "Sincronizar clientas nuevas de hoy" para ver quién visitó por primera vez.'
         emptyAfterSyncText="No hay clientas nuevas hoy."
+        dismissable
       />
+
+      <ReminderEffectivenessCard />
     </div>
   );
 };
