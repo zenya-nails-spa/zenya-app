@@ -182,7 +182,7 @@ const ReactivationPanel = ({ profiles }) => {
   const [testRecipientByTemplate, setTestRecipientByTemplate] = useState({});
   const [candidateSearch, setCandidateSearch] = useState('');
 
-  const { data: templates } = useApi(() => api.whatsappTemplates(), [refreshKey]);
+  const { data: templates } = useApi(() => api.whatsappTemplates({ category: 'reactivation' }), [refreshKey]);
   const { data: campaignStatus } = useApi(() => api.whatsappCampaignStatus(), [refreshKey]);
 
   const sends = campaignStatus?.sends ?? [];
@@ -312,68 +312,73 @@ const ReactivationPanel = ({ profiles }) => {
           )
         }
       >
-        {editingTemplate && (
-          <TemplateForm
-            initial={editingTemplate === 'new' ? null : editingTemplate}
-            onCancel={() => setEditingTemplate(null)}
-            onSave={handleSaveTemplate}
-          />
+        {editingTemplate === 'new' && (
+          <TemplateForm initial={null} onCancel={() => setEditingTemplate(null)} onSave={handleSaveTemplate} />
         )}
         {(templates ?? []).length === 0 && !editingTemplate ? (
           <EmptyState text="Todavía no tienes plantillas. Crea una para empezar a mandar mensajes de reactivación." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {(templates ?? []).map((t) => (
-              <div
-                key={t.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 12,
-                  padding: '10px 12px',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text-heading)', fontSize: 'var(--text-sm)' }}>
-                    {t.name}
+            {(templates ?? []).map((t) =>
+              editingTemplate && editingTemplate !== 'new' && editingTemplate.id === t.id ? (
+                <TemplateForm
+                  key={t.id}
+                  initial={t}
+                  onCancel={() => setEditingTemplate(null)}
+                  onSave={handleSaveTemplate}
+                />
+              ) : (
+                <div
+                  key={t.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 12,
+                    padding: '10px 12px',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-sm)',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-heading)', fontSize: 'var(--text-sm)' }}>
+                      {t.name}
+                    </div>
+                    <div
+                      style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: 'var(--text-sm)',
+                        whiteSpace: 'pre-wrap',
+                        marginTop: 4,
+                      }}
+                    >
+                      {t.body}
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      color: 'var(--text-secondary)',
-                      fontSize: 'var(--text-sm)',
-                      whiteSpace: 'pre-wrap',
-                      marginTop: 4,
-                    }}
-                  >
-                    {t.body}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <select
+                      value={testRecipientByTemplate[t.id] ?? TEST_RECIPIENTS[0].phone}
+                      onChange={(e) => setTestRecipientByTemplate((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                      style={{ ...inputStyle, padding: '4px 8px', height: 30, fontSize: 'var(--text-xs)' }}
+                    >
+                      {TEST_RECIPIENTS.map((r) => (
+                        <option key={r.phone} value={r.phone}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                    <IconButton
+                      icon={Send}
+                      size="sm"
+                      variant="outline"
+                      title="Enviar de prueba"
+                      onClick={() => handleTestSend(t)}
+                    />
+                    <IconButton icon={Edit2} size="sm" title="Editar" onClick={() => setEditingTemplate(t)} />
+                    <IconButton icon={Archive} size="sm" title="Archivar" onClick={() => handleArchiveTemplate(t)} />
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                  <select
-                    value={testRecipientByTemplate[t.id] ?? TEST_RECIPIENTS[0].phone}
-                    onChange={(e) => setTestRecipientByTemplate((prev) => ({ ...prev, [t.id]: e.target.value }))}
-                    style={{ ...inputStyle, padding: '4px 8px', height: 30, fontSize: 'var(--text-xs)' }}
-                  >
-                    {TEST_RECIPIENTS.map((r) => (
-                      <option key={r.phone} value={r.phone}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
-                  <IconButton
-                    icon={Send}
-                    size="sm"
-                    variant="outline"
-                    title="Enviar de prueba"
-                    onClick={() => handleTestSend(t)}
-                  />
-                  <IconButton icon={Edit2} size="sm" title="Editar" onClick={() => setEditingTemplate(t)} />
-                  <IconButton icon={Archive} size="sm" title="Archivar" onClick={() => handleArchiveTemplate(t)} />
-                </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
         )}
       </Card>
