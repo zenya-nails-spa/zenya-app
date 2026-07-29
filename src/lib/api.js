@@ -82,4 +82,5 @@ export const api = {
   retouchReminders: () => get('/whatsapp/retouch-reminders'),
   newClientFeedback: () => get('/whatsapp/new-client-feedback'),
   dismissReminder: (body) => post('/whatsapp/dismissals', body),
+  reminderEffectiveness: () => get('/whatsapp/reminder-effectiveness'),
 };
