@@ -8,6 +8,7 @@ import SectionTitle from './components/widgets/section-title';
 import DateRangePicker from './components/ui/date-range-picker';
 import { SkeletonCard } from './components/ui/skeleton';
 import IconButton from './components/ui/icon-button';
+import NotificationBell from './components/widgets/notification-bell';
 
 import Login from './pages/login';
 import Overview from './pages/overview';
@@ -208,6 +209,7 @@ const App = () => {
               {!HIDE_RANGE.has(active) && (
                 <DateRangePicker value={dateRange} onChange={setDateRange} className="z-hide-sm" />
               )}
+              <NotificationBell onNavigate={navigate} />
               <IconButton
                 label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
                 variant="outline"
