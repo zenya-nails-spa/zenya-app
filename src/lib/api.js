@@ -83,4 +83,18 @@ export const api = {
   newClientFeedback: () => get('/whatsapp/new-client-feedback'),
   dismissReminder: (body) => post('/whatsapp/dismissals', body),
   reminderEffectiveness: () => get('/whatsapp/reminder-effectiveness'),
+
+  // staff hours — "Adeudo de tiempo extra manicuristas" ledger + vacations
+  staffHoursBalance: () => get('/staff-hours/balance'),
+  staffTimeEntries: (params) => get('/staff-hours/time-entries', params),
+  createStaffTimeEntry: (body) => post('/staff-hours/time-entries', body),
+  updateStaffTimeEntry: (id, body) => put(`/staff-hours/time-entries/${id}`, body),
+  staffVacations: (params) => get('/staff-hours/vacations', params),
+  createStaffVacation: (body) => post('/staff-hours/vacations', body),
+  updateStaffVacation: (id, body) => put(`/staff-hours/vacations/${id}`, body),
+  staffAllotments: () => get('/staff-hours/allotments'),
+  upsertStaffAllotment: (professionalId, body) => put(`/staff-hours/allotments/${professionalId}`, body),
+
+  // alerts
+  alerts: () => get('/alerts'),
 };

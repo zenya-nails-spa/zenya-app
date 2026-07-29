@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { useApi } from '../hooks/use-api';
 import StatCard from '../components/widgets/stat-card';
@@ -9,6 +9,8 @@ import Donut from '../components/charts/donut';
 import BarChart from '../components/charts/bar-chart';
 import DataTable from '../components/widgets/data-table';
 import Avatar from '../components/ui/avatar';
+import SegmentedControl from '../components/ui/segmented-control';
+import StaffHoursPanel from '../components/widgets/staff-hours-panel';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
@@ -30,6 +32,7 @@ const UNASSIGNED_COLUMNS = [
 ];
 
 const Staff = ({ dateRange }) => {
+  const [tab, setTab] = useState('performance');
   const deps = [dateRange.from_date, dateRange.to_date];
   const { data: staffData } = useApi(() => api.staffPerformance(dateRange), deps);
   const { data: repeatData } = useApi(() => api.staffRepeatRate(dateRange), deps);
@@ -63,6 +66,19 @@ const Staff = ({ dateRange }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
+      <SegmentedControl
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'performance', label: 'Desempeño' },
+          { value: 'hours', label: 'Horas' },
+        ]}
+      />
+
+      {tab === 'hours' && <StaffHoursPanel />}
+
+      {tab === 'performance' && (
+        <>
       <div className="z-kpi-grid">
         <StatCard
           label="Top empleada"
@@ -282,6 +298,8 @@ const Staff = ({ dateRange }) => {
             }}
           />
         </Card>
+      )}
+        </>
       )}
     </div>
   );
