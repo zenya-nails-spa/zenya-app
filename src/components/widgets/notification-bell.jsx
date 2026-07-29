@@ -63,7 +63,10 @@ const NotificationBell = ({ onNavigate }) => {
   const ref = useRef(null);
 
   const load = useCallback(() => {
-    api.alerts().then(setAlerts).catch(() => {});
+    api
+      .alerts()
+      .then(setAlerts)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {

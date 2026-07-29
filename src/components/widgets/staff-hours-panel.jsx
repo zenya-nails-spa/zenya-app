@@ -215,10 +215,10 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
             marginBottom: 16,
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={labelStyle}>Fecha</label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={labelStyle}>Fecha</span>
             <input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} style={inputStyle} />
-          </div>
+          </label>
           <Select
             label="Tipo"
             value={entryType}
@@ -229,8 +229,8 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
               { value: 'debe', label: 'Debe (ella debe)' },
             ]}
           />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={labelStyle}>Cantidad</label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={labelStyle}>Cantidad</span>
             <input
               type="number"
               min="0"
@@ -239,7 +239,7 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
               onChange={(e) => setAmount(e.target.value)}
               style={{ ...inputStyle, width: 90 }}
             />
-          </div>
+          </label>
           <Select
             value={unit}
             onChange={setUnit}
@@ -250,8 +250,8 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
               { value: 'dias', label: 'Días (8h)' },
             ]}
           />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
-            <label style={labelStyle}>Motivo</label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
+            <span style={labelStyle}>Motivo</span>
             <input
               type="text"
               value={reason}
@@ -259,10 +259,10 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
               style={inputStyle}
               placeholder="Opcional"
             />
-          </div>
+          </label>
           {entryType === 'extra' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
-              <label style={labelStyle}>Clienta</label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
+              <span style={labelStyle}>Clienta</span>
               <input
                 type="text"
                 value={clientName}
@@ -270,7 +270,7 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
                 style={inputStyle}
                 placeholder="Opcional"
               />
-            </div>
+            </label>
           )}
           <Button size="sm" onClick={handleSubmit} disabled={saving || !amount}>
             Guardar
@@ -294,7 +294,9 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
             if (key === 'reason') return row.reason ?? '—';
             if (key === 'client_name') return row.client_name ?? '—';
             if (key === 'actions')
-              return <IconButton icon={X} title="Anular" size="sm" variant="ghost" onClick={() => handleVoid(row.id)} />;
+              return (
+                <IconButton icon={X} title="Anular" size="sm" variant="ghost" onClick={() => handleVoid(row.id)} />
+              );
             return row[key];
           }}
         />
@@ -313,7 +315,9 @@ const VacationSection = ({ professional, vacations, allotment, summary, onChange
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const [totalDaysDraft, setTotalDaysDraft] = useState(String(allotment?.total_days ?? summary?.vacation_total_days ?? 0));
+  const [totalDaysDraft, setTotalDaysDraft] = useState(
+    String(allotment?.total_days ?? summary?.vacation_total_days ?? 0)
+  );
   const [savingAllotment, setSavingAllotment] = useState(false);
 
   useEffect(() => {
@@ -381,9 +385,12 @@ const VacationSection = ({ professional, vacations, allotment, summary, onChange
     >
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, marginBottom: 16, alignItems: 'flex-end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={labelStyle}>Días al año</label>
+          <label htmlFor={`allotment-${professional.id}`} style={labelStyle}>
+            Días al año
+          </label>
           <div style={{ display: 'flex', gap: 6 }}>
             <input
+              id={`allotment-${professional.id}`}
               type="number"
               min="0"
               step="0.5"
@@ -417,15 +424,15 @@ const VacationSection = ({ professional, vacations, allotment, summary, onChange
             marginBottom: 16,
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={labelStyle}>Fecha</label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={labelStyle}>Fecha</span>
             <input
               type="date"
               value={vacationDate}
               onChange={(e) => setVacationDate(e.target.value)}
               style={inputStyle}
             />
-          </div>
+          </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, ...labelStyle }}>
             <input type="checkbox" checked={isHalfDay} onChange={(e) => setIsHalfDay(e.target.checked)} />
             Medio día
@@ -440,10 +447,16 @@ const VacationSection = ({ professional, vacations, allotment, summary, onChange
               { value: 'requested', label: 'Solicitado' },
             ]}
           />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 160 }}>
-            <label style={labelStyle}>Nota</label>
-            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder="Opcional" />
-          </div>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 160 }}>
+            <span style={labelStyle}>Nota</span>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              style={inputStyle}
+              placeholder="Opcional"
+            />
+          </label>
           <Button size="sm" onClick={handleSubmit} disabled={saving}>
             Guardar
           </Button>
@@ -465,7 +478,9 @@ const VacationSection = ({ professional, vacations, allotment, summary, onChange
               );
             if (key === 'note') return row.note ?? '—';
             if (key === 'actions')
-              return <IconButton icon={X} title="Anular" size="sm" variant="ghost" onClick={() => handleVoid(row.id)} />;
+              return (
+                <IconButton icon={X} title="Anular" size="sm" variant="ghost" onClick={() => handleVoid(row.id)} />
+              );
             return row[key];
           }}
         />
