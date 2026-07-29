@@ -6,6 +6,7 @@ import Card from '../components/ui/card';
 import DataTable from '../components/widgets/data-table';
 import ApptStatus from '../components/widgets/appt-status';
 import AppointmentReminders from '../components/widgets/appointment-reminders';
+import ReminderCampaignPanel from '../components/widgets/reminder-campaign-panel';
 import Badge from '../components/ui/badge';
 import { ChevronLeft, ChevronRight, CheckCircle, Clock, XCircle } from 'lucide-react';
 
@@ -355,6 +356,59 @@ const Appointments = () => {
       </div>
 
       <AppointmentReminders />
+
+      <ReminderCampaignPanel
+        category="retouch"
+        fetchClients={api.retouchReminders}
+        dateField="last_visit"
+        dateLabel="Última visita"
+        templateEyebrow="WhatsApp"
+        templateTitle="Plantilla de recordatorio de retoque"
+        templateInfo="Se manda a clientas cuya última visita fue hace 20 días o más, siempre que no tengan ya una cita agendada. Usa {nombre} para su primer nombre."
+        listEyebrow="Retoque"
+        listTitle="Clientas con retoque pendiente"
+        listInfo="Cada clic sincroniza con AgendaPro primero y trae a las clientas con 20+ días desde su última visita (sin cita próxima agendada). Una clienta se queda en la lista día tras día hasta que le mandes el mensaje o la quites manualmente con la ✕ — no desaparece sola."
+        syncButtonLabel="Sincronizar clientas de retoque"
+        defaultTemplateName="Recordatorio de retoque"
+        defaultTemplateBody={`¡Hola! 🌸
+
+Esperamos que te encuentres muy bien ☺️ Te contactamos para recordarte que ya es tiempo de tu retoque ✨
+
+¿Te gustaría agendar tu cita? 🥰
+
+Será un placer atenderte 💕 Bonito día! ☺️`}
+        storageKey="zenya.retouchReminders.lastSync"
+        emptyBeforeSyncText='Da clic en "Sincronizar clientas de retoque" para ver quién tiene retoque pendiente.'
+        emptyAfterSyncText="No hay clientas con retoque pendiente hoy."
+        dismissable
+      />
+
+      <ReminderCampaignPanel
+        category="feedback"
+        fetchClients={api.newClientFeedback}
+        dateField="visit_date"
+        dateLabel="Primera visita"
+        templateEyebrow="WhatsApp"
+        templateTitle="Plantilla de encuesta a clienta nueva"
+        templateInfo="Se manda a clientas cuya visita de hoy fue la primera vez que nos visitan. Usa {nombre} para su primer nombre."
+        listEyebrow="Clientas nuevas"
+        listTitle="Clientas nuevas de hoy"
+        listInfo="Cada clic sincroniza con AgendaPro primero y luego trae a las clientas cuya primera visita registrada con nosotras fue hoy."
+        syncButtonLabel="Sincronizar clientas nuevas de hoy"
+        defaultTemplateName="Encuesta clienta nueva"
+        defaultTemplateBody={`¡Hola! 🌸
+
+Gracias por visitar Zenya Nails & Spa. ✨ Nos encanta saber cómo se sintieron nuestras clientas durante su visita y conocer su experiencia con nosotras.
+
+Si tienes un momento, nos encantaría que nos compartieras tu opinión sobre la atención recibida, el ambiente y el resultado de tu servicio. 🥰
+
+Tu experiencia es muy valiosa para nosotras y nos ayuda a seguir creando momentos especiales para cada persona que nos visita.
+
+¡Gracias por tu confianza y por elegir Zenya! 💕`}
+        storageKey="zenya.newClientFeedback.lastSync"
+        emptyBeforeSyncText='Da clic en "Sincronizar clientas nuevas de hoy" para ver quién visitó por primera vez.'
+        emptyAfterSyncText="No hay clientas nuevas hoy."
+      />
     </div>
   );
 };

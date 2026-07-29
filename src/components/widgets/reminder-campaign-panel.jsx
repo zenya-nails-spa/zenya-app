@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Send } from 'lucide-react';
+import { RefreshCw, Send, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { buildWhatsappUrl, TEST_RECIPIENTS } from '../../lib/whatsapp';
 import Card from '../ui/card';
@@ -19,51 +19,9 @@ const inputStyle = {
   background: 'var(--surface-card)',
 };
 
-const DEFAULT_TEMPLATE = `¡Hola! ☺️🌸 te recordamos que tienes una cita con nosotras:
-
-{detalle_cita}
-
-Por favor, cualquier cambio o cancelación te pedimos hacerlo con al menos 2 horas de anticipación, ya que preparamos todo el espacio especialmente para consentirte 💅💕
-
-Agradeceríamos mucho si nos ayudas confirmando este mensaje para tener todo listo para ti 🌸
-
-¡Te esperamos! ☺️🎀
-
-Zenya Nails & Spa 🌸`;
-
-const MONTHS_ES = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-];
-
-function formatFechaManana(targetDateStr) {
-  const [, m, d] = (targetDateStr || '').split('-').map(Number);
-  if (!m || !d) return 'mañana';
-  return `mañana ${d} de ${MONTHS_ES[m - 1]}`;
-}
-
-function buildDetalleCita(appointments, targetDate) {
-  const lines = [`📅 Fecha: ${formatFechaManana(targetDate)}`];
-  (appointments ?? []).forEach((a) => {
-    lines.push(`⏰ Hora: ${a.time}`);
-    lines.push(`💗 Servicio: ${a.service_name ?? 'Servicio'}`);
-  });
-  return lines.join('\n');
-}
-
-function fillReminderTemplate(body, detalleCita, firstName) {
+function fillTemplate(body, firstName) {
   const name = (firstName || '').trim().split(/\s+/)[0] || '';
-  return (body || '').replaceAll('{detalle_cita}', detalleCita).replaceAll('{nombre}', name);
+  return (body || '').replaceAll('{nombre}', name);
 }
 
 function fmtTime(iso) {
@@ -85,55 +43,51 @@ const EmptyState = ({ text }) => (
   </div>
 );
 
-function sampleDetalleCita() {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
-  return buildDetalleCita([{ time: '12:00', service_name: 'Manicure de prueba' }], dateStr);
-}
-
-const STORAGE_KEY = 'zenya.appointmentReminders.lastSync';
-
-const REMINDER_COLS = [
-  { key: 'name', label: 'Clienta' },
-  { key: 'phone', label: 'Teléfono' },
-  { key: 'citas', label: 'Citas de mañana' },
-  { key: 'estado', label: 'Estado' },
-  { key: 'accion', label: '', align: 'right' },
-];
-
-const AppointmentReminders = () => {
-  const [template, setTemplate] = useState(null); // the reminder template, or null if none exists yet
+// Generic "sync a candidate list, edit a template, send one by one" panel —
+// shared by the retouch and new-client-feedback reminders (AppointmentReminders
+// stays separate since it has the multi-appointment grouping these don't need).
+const ReminderCampaignPanel = ({
+  category,
+  fetchClients,
+  dateField,
+  dateLabel,
+  templateEyebrow,
+  templateTitle,
+  templateInfo,
+  listEyebrow,
+  listTitle,
+  listInfo,
+  syncButtonLabel,
+  defaultTemplateName,
+  defaultTemplateBody,
+  storageKey,
+  emptyBeforeSyncText,
+  emptyAfterSyncText,
+  dismissable = false,
+}) => {
+  const [template, setTemplate] = useState(null);
   const [templateLoaded, setTemplateLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [draftBody, setDraftBody] = useState(DEFAULT_TEMPLATE);
+  const [draftBody, setDraftBody] = useState(defaultTemplateBody);
   const [savingTemplate, setSavingTemplate] = useState(false);
 
   const [synced, setSynced] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [targetDate, setTargetDate] = useState(null);
   const [clients, setClients] = useState([]);
   const [syncMessage, setSyncMessage] = useState(null); // { type: 'info' | 'error', text }
   const [testRecipient, setTestRecipient] = useState(TEST_RECIPIENTS[0].phone);
 
-  const handleTestSend = (urlBuilder) => {
-    if (!template) return;
-    const recipient = TEST_RECIPIENTS.find((r) => r.phone === testRecipient) ?? TEST_RECIPIENTS[0];
-    const message = fillReminderTemplate(template.body, sampleDetalleCita(), recipient.name);
-    window.open(urlBuilder(recipient.phone, message), '_blank', 'noopener');
-  };
-
   const loadTemplate = async () => {
-    const found = await api.whatsappTemplates({ category: 'reminder' });
+    const found = await api.whatsappTemplates({ category });
     let current = found?.[0] ?? null;
     // Auto-seed with the default text on first-ever load so the test-send
     // and edit controls (which need a real template to fill in) are there
     // right away, instead of forcing an explicit "Crear plantilla" step.
     if (!current) {
       current = await api.createWhatsappTemplate({
-        name: 'Recordatorio de cita',
-        body: DEFAULT_TEMPLATE,
-        category: 'reminder',
+        name: defaultTemplateName,
+        body: defaultTemplateBody,
+        category,
       });
     }
     setTemplate(current);
@@ -144,28 +98,33 @@ const AppointmentReminders = () => {
 
   useEffect(() => {
     loadTemplate();
+    // eslint-disable-next-line
   }, []);
 
-  // Restore the last sync from this browser so a page reload doesn't wipe the
-  // list — "ya enviado" status still comes fresh from the server either way,
-  // this just saves having to click "Sincronizar" again to see it.
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
       if (saved?.clients?.length) {
-        setTargetDate(saved.targetDate);
         setClients(saved.clients);
         setSynced(true);
       }
     } catch {
       // ignore malformed/unavailable storage
     }
+    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
     if (!synced) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ targetDate, clients }));
-  }, [synced, targetDate, clients]);
+    localStorage.setItem(storageKey, JSON.stringify({ clients }));
+  }, [synced, clients, storageKey]);
+
+  const handleTestSend = () => {
+    if (!template) return;
+    const recipient = TEST_RECIPIENTS.find((r) => r.phone === testRecipient) ?? TEST_RECIPIENTS[0];
+    const message = fillTemplate(template.body, recipient.name);
+    window.open(buildWhatsappUrl(recipient.phone, message), '_blank', 'noopener');
+  };
 
   const handleSaveTemplate = async () => {
     setSavingTemplate(true);
@@ -175,9 +134,9 @@ const AppointmentReminders = () => {
         setTemplate(updated);
       } else {
         const created = await api.createWhatsappTemplate({
-          name: 'Recordatorio de cita',
+          name: defaultTemplateName,
           body: draftBody,
-          category: 'reminder',
+          category,
         });
         setTemplate(created);
       }
@@ -192,22 +151,15 @@ const AppointmentReminders = () => {
     setSyncMessage(null);
     try {
       const currentTemplate = templateLoaded ? template : await loadTemplate();
-      // Pulls fresh data from AgendaPro first, server-side — this call can take a while.
-      const data = await api.appointmentReminders();
+      const data = await fetchClients();
       const freshClients = (data.clients ?? []).map((c) => ({
         ...c,
-        // A brand-new client's booking can sync before her client record does
-        // (separate daily syncs) — show something identifiable instead of "—".
         name: [c.first_name, c.last_name].filter(Boolean).join(' ') || `Clienta nueva #${c.client_id}`,
       }));
 
-      // Anyone who was here before but isn't anymore got cancelled/moved off
-      // tomorrow — the fresh list from the server already reflects that, we
-      // just diff against what was showing to report how many are new.
       const previousIds = new Set(clients.map((c) => c.client_id));
       const newCount = freshClients.filter((c) => !previousIds.has(c.client_id)).length;
 
-      setTargetDate(data.target_date);
       setClients(freshClients);
       setSynced(true);
       setSyncMessage({
@@ -227,8 +179,7 @@ const AppointmentReminders = () => {
 
   const handleSend = async (client) => {
     if (!template || !client.phone) return;
-    const detalle = buildDetalleCita(client.appointments, targetDate);
-    const message = fillReminderTemplate(template.body, detalle, client.first_name);
+    const message = fillTemplate(template.body, client.first_name);
     window.open(buildWhatsappUrl(client.phone, message), '_blank', 'noopener');
     await api.createWhatsappSend({ client_id: client.client_id, template_id: template.id });
     setClients((prev) =>
@@ -238,12 +189,25 @@ const AppointmentReminders = () => {
     );
   };
 
+  const handleDismiss = async (client) => {
+    await api.dismissReminder({ client_id: client.client_id, category });
+    setClients((prev) => prev.filter((c) => c.client_id !== client.client_id));
+  };
+
+  const columns = [
+    { key: 'name', label: 'Clienta' },
+    { key: 'phone', label: 'Teléfono' },
+    { key: 'date', label: dateLabel },
+    { key: 'estado', label: 'Estado' },
+    { key: 'accion', label: '', align: 'right' },
+  ];
+
   return (
     <>
       <Card
-        eyebrow="WhatsApp"
-        title="Plantilla de recordatorio"
-        info="Se manda la noche antes de la cita. Usa {detalle_cita} para el bloque de fecha/hora/servicio (se genera solo, incluyendo todas las citas si la clienta tiene más de una) y {nombre} para su primer nombre. El botón de prueba manda un mensaje de ejemplo a Bety o Carlos por WhatsApp Web para revisar cómo se ve antes de mandarlo de verdad."
+        eyebrow={templateEyebrow}
+        title={templateTitle}
+        info={templateInfo}
         action={
           !editing && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -265,7 +229,7 @@ const AppointmentReminders = () => {
                     size="sm"
                     variant="outline"
                     title="Enviar mensaje de prueba"
-                    onClick={() => handleTestSend(buildWhatsappUrl)}
+                    onClick={handleTestSend}
                   />
                 </>
               )}
@@ -296,7 +260,7 @@ const AppointmentReminders = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setDraftBody(template?.body ?? DEFAULT_TEMPLATE);
+                  setDraftBody(template?.body ?? defaultTemplateBody);
                   setEditing(false);
                 }}
               >
@@ -316,15 +280,15 @@ const AppointmentReminders = () => {
               fontFamily: 'var(--font-sans)',
             }}
           >
-            {!templateLoaded ? 'Cargando...' : (template?.body ?? DEFAULT_TEMPLATE)}
+            {!templateLoaded ? 'Cargando...' : (template?.body ?? defaultTemplateBody)}
           </div>
         )}
       </Card>
 
       <Card
-        eyebrow="Citas"
-        title="Recordatorios de mañana"
-        info="Cada clic sincroniza con AgendaPro primero (puede tardar unos segundos) y luego trae las clientas con cita mañana, agrupando todas sus citas si tiene más de una. Si alguien canceló o movió su cita, desaparece sola de la lista. El estatus se actualiza en cuanto le das clic a enviar."
+        eyebrow={listEyebrow}
+        title={listTitle}
+        info={listInfo}
         action={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {syncMessage && (
@@ -339,16 +303,16 @@ const AppointmentReminders = () => {
               </span>
             )}
             <Button variant="secondary" size="sm" iconLeft={RefreshCw} onClick={handleSync} disabled={syncing}>
-              {syncing ? 'Sincronizando...' : 'Sincronizar clientas de mañana'}
+              {syncing ? 'Sincronizando...' : syncButtonLabel}
             </Button>
           </div>
         }
       >
         {!synced ? (
-          <EmptyState text="Da clic en “Sincronizar clientas de mañana” para ver las citas de mañana." />
+          <EmptyState text={emptyBeforeSyncText} />
         ) : clients.length > 0 ? (
           <DataTable
-            columns={REMINDER_COLS}
+            columns={columns}
             rows={clients}
             renderCell={(row, key) => {
               if (key === 'name')
@@ -359,16 +323,7 @@ const AppointmentReminders = () => {
                   </div>
                 );
               if (key === 'phone') return <span style={{ color: 'var(--text-secondary)' }}>{row.phone ?? '—'}</span>;
-              if (key === 'citas')
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {(row.appointments ?? []).map((a, i) => (
-                      <span key={i} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>
-                        {a.time} — {a.service_name ?? 'Servicio'}
-                      </span>
-                    ))}
-                  </div>
-                );
+              if (key === 'date') return <span style={{ color: 'var(--text-body)' }}>{row[dateField] ?? '—'}</span>;
               if (key === 'estado')
                 return row.reminder_sent ? (
                   <span title={row.reminder_sent_at ? `Enviado ${fmtTime(row.reminder_sent_at)}` : 'Enviado'}>
@@ -383,30 +338,41 @@ const AppointmentReminders = () => {
                 );
               if (key === 'accion')
                 return (
-                  <IconButton
-                    icon={Send}
-                    size="sm"
-                    variant="soft"
-                    title={
-                      !row.phone
-                        ? 'Sin teléfono todavía — probablemente es clienta nueva, sincroniza de nuevo en un rato'
-                        : !template
-                          ? 'Crea la plantilla primero'
-                          : 'Enviar recordatorio'
-                    }
-                    disabled={!row.phone || !template}
-                    onClick={() => handleSend(row)}
-                  />
+                  <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                    <IconButton
+                      icon={Send}
+                      size="sm"
+                      variant="soft"
+                      title={
+                        !row.phone
+                          ? 'Sin teléfono todavía — probablemente es clienta nueva, sincroniza de nuevo en un rato'
+                          : !template
+                            ? 'Crea la plantilla primero'
+                            : 'Enviar mensaje'
+                      }
+                      disabled={!row.phone || !template}
+                      onClick={() => handleSend(row)}
+                    />
+                    {dismissable && (
+                      <IconButton
+                        icon={X}
+                        size="sm"
+                        variant="outline"
+                        title="Quitar de la lista sin enviar mensaje"
+                        onClick={() => handleDismiss(row)}
+                      />
+                    )}
+                  </div>
                 );
               return row[key] ?? '—';
             }}
           />
         ) : (
-          <EmptyState text="No hay citas para mañana." />
+          <EmptyState text={emptyAfterSyncText} />
         )}
       </Card>
     </>
   );
 };
 
-export default AppointmentReminders;
+export default ReminderCampaignPanel;
