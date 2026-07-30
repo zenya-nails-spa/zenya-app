@@ -60,7 +60,6 @@ const ReminderCampaignPanel = ({
   syncButtonLabel,
   defaultTemplateName,
   defaultTemplateBody,
-  storageKey,
   emptyBeforeSyncText,
   emptyAfterSyncText,
   dismissable = false,
@@ -101,23 +100,28 @@ const ReminderCampaignPanel = ({
     // eslint-disable-next-line
   }, []);
 
+  const mapClients = (rawClients) =>
+    (rawClients ?? []).map((c) => ({
+      ...c,
+      name: [c.first_name, c.last_name].filter(Boolean).join(' ') || `Clienta nueva #${c.client_id}`,
+    }));
+
+  // Reads whatever the shared backend currently has — no AgendaPro pull, just
+  // the local (shared, MySQL-backed) state — so every browser shows the same
+  // list on load. Syncing from one device should be visible on every other
+  // device on refresh, not just cached per-browser via localStorage.
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
-      if (saved?.clients?.length) {
-        setClients(saved.clients);
+    (async () => {
+      try {
+        const data = await fetchClients({ live_sync: false });
+        setClients(mapClients(data.clients));
         setSynced(true);
+      } catch {
+        // leave unsynced — the manual "Sincronizar" button still works
       }
-    } catch {
-      // ignore malformed/unavailable storage
-    }
+    })();
     // eslint-disable-next-line
   }, []);
-
-  useEffect(() => {
-    if (!synced) return;
-    localStorage.setItem(storageKey, JSON.stringify({ clients }));
-  }, [synced, clients, storageKey]);
 
   const handleTestSend = () => {
     if (!template) return;
@@ -151,11 +155,8 @@ const ReminderCampaignPanel = ({
     setSyncMessage(null);
     try {
       const currentTemplate = templateLoaded ? template : await loadTemplate();
-      const data = await fetchClients();
-      const freshClients = (data.clients ?? []).map((c) => ({
-        ...c,
-        name: [c.first_name, c.last_name].filter(Boolean).join(' ') || `Clienta nueva #${c.client_id}`,
-      }));
+      const data = await fetchClients({ live_sync: true });
+      const freshClients = mapClients(data.clients);
 
       const previousIds = new Set(clients.map((c) => c.client_id));
       const newCount = freshClients.filter((c) => !previousIds.has(c.client_id)).length;

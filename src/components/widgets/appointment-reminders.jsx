@@ -92,8 +92,6 @@ function sampleDetalleCita() {
   return buildDetalleCita([{ time: '12:00', service_name: 'Manicure de prueba' }], dateStr);
 }
 
-const STORAGE_KEY = 'zenya.appointmentReminders.lastSync';
-
 const REMINDER_COLS = [
   { key: 'name', label: 'Clienta' },
   { key: 'phone', label: 'Teléfono' },
@@ -146,26 +144,30 @@ const AppointmentReminders = () => {
     loadTemplate();
   }, []);
 
-  // Restore the last sync from this browser so a page reload doesn't wipe the
-  // list — "ya enviado" status still comes fresh from the server either way,
-  // this just saves having to click "Sincronizar" again to see it.
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (saved?.clients?.length) {
-        setTargetDate(saved.targetDate);
-        setClients(saved.clients);
-        setSynced(true);
-      }
-    } catch {
-      // ignore malformed/unavailable storage
-    }
-  }, []);
+  const mapClients = (rawClients) =>
+    (rawClients ?? []).map((c) => ({
+      ...c,
+      // A brand-new client's booking can sync before her client record does
+      // (separate daily syncs) — show something identifiable instead of "—".
+      name: [c.first_name, c.last_name].filter(Boolean).join(' ') || `Clienta nueva #${c.client_id}`,
+    }));
 
+  // Reads whatever the shared backend currently has — no AgendaPro pull, just
+  // the local (shared, MySQL-backed) state — so every browser shows the same
+  // list on load. Syncing from one device should be visible on every other
+  // device on refresh, not just cached per-browser via localStorage.
   useEffect(() => {
-    if (!synced) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ targetDate, clients }));
-  }, [synced, targetDate, clients]);
+    (async () => {
+      try {
+        const data = await api.appointmentReminders({ live_sync: false });
+        setTargetDate(data.target_date);
+        setClients(mapClients(data.clients));
+        setSynced(true);
+      } catch {
+        // leave unsynced — the manual "Sincronizar" button still works
+      }
+    })();
+  }, []);
 
   const handleSaveTemplate = async () => {
     setSavingTemplate(true);
@@ -193,13 +195,8 @@ const AppointmentReminders = () => {
     try {
       const currentTemplate = templateLoaded ? template : await loadTemplate();
       // Pulls fresh data from AgendaPro first, server-side — this call can take a while.
-      const data = await api.appointmentReminders();
-      const freshClients = (data.clients ?? []).map((c) => ({
-        ...c,
-        // A brand-new client's booking can sync before her client record does
-        // (separate daily syncs) — show something identifiable instead of "—".
-        name: [c.first_name, c.last_name].filter(Boolean).join(' ') || `Clienta nueva #${c.client_id}`,
-      }));
+      const data = await api.appointmentReminders({ live_sync: true });
+      const freshClients = mapClients(data.clients);
 
       // Anyone who was here before but isn't anymore got cancelled/moved off
       // tomorrow — the fresh list from the server already reflects that, we
