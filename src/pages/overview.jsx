@@ -14,6 +14,45 @@ const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
 const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+// revenue-by-day always returns one row per day in the selected range — the
+// Sem/Mes/Año control re-buckets that same daily series client-side instead
+// of refetching, since the API has no separate granularity endpoint.
+function bucketRevByDay(revByDay, period) {
+  if (!revByDay?.length) return { data: [], labels: [] };
+
+  const keyFor = {
+    dia: (d) => d.toISOString().slice(0, 10),
+    semana: (d) => {
+      // Monday-start week key, so a week spanning a month boundary buckets together.
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      return monday.toISOString().slice(0, 10);
+    },
+    mes: (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+    año: (d) => String(d.getFullYear()),
+  }[period];
+
+  const labelFor = {
+    dia: (key) => `Día ${Number(key.slice(8, 10))}`,
+    semana: (key) => {
+      const d = new Date(key + 'T12:00:00');
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    },
+    mes: (key) => MONTHS_SHORT[Number(key.slice(5, 7)) - 1],
+    año: (key) => key,
+  }[period];
+
+  const totals = new Map();
+  for (const r of revByDay) {
+    const d = new Date(r.date + 'T12:00:00');
+    const key = keyFor(d);
+    totals.set(key, (totals.get(key) ?? 0) + r.revenue);
+  }
+  const sortedKeys = [...totals.keys()].sort();
+  return { data: sortedKeys.map((k) => totals.get(k)), labels: sortedKeys.map(labelFor) };
+}
 
 const INSIGHT_COLORS = {
   positive: { bg: 'var(--lavender-50)', fg: 'var(--green-600)' },
@@ -103,8 +142,9 @@ const Overview = ({ dateRange, prevDateRange }) => {
   const ticketDelta =
     kpis && kpisPrev?.avg_ticket ? ((kpis.avg_ticket - kpisPrev.avg_ticket) / kpisPrev.avg_ticket) * 100 : 0;
 
-  const chartData = useMemo(() => revByDay?.map((r) => r.revenue) ?? [], [revByDay]);
-  const chartLabels = useMemo(() => revByDay?.map((r) => `Día ${new Date(r.date).getDate()}`) ?? [], [revByDay]);
+  const bucketed = useMemo(() => bucketRevByDay(revByDay, period), [revByDay, period]);
+  const chartData = bucketed.data;
+  const chartLabels = bucketed.labels;
   const maxServiceRev = topServices?.length ? Math.max(...topServices.map((s) => s.revenue)) : 1;
   const bookings = recentBookings ?? [];
 
@@ -176,6 +216,7 @@ const Overview = ({ dateRange, prevDateRange }) => {
           action={
             <SegmentedControl
               options={[
+                { value: 'dia', label: 'Día' },
                 { value: 'semana', label: 'Sem' },
                 { value: 'mes', label: 'Mes' },
                 { value: 'año', label: 'Año' },
