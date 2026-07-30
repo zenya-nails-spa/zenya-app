@@ -2,12 +2,14 @@ import { useState, useMemo } from 'react';
 import { MessageCircle, Plus, Edit2, Archive, Send } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useApi } from '../../hooks/use-api';
+import { usePagination } from '../../hooks/use-pagination';
 import { buildWhatsappUrl, TEST_RECIPIENTS } from '../../lib/whatsapp';
 import Card from '../ui/card';
 import Badge from '../ui/badge';
 import Button from '../ui/button';
 import IconButton from '../ui/icon-button';
 import Avatar from '../ui/avatar';
+import Pagination from '../ui/pagination';
 import DataTable from './data-table';
 import StatCard from './stat-card';
 
@@ -155,6 +157,9 @@ function campaignRank(send) {
   return send.reactivated ? 2 : 1;
 }
 
+// Click a header to sort by it (asc/desc toggle); click another to add it as
+// the next-priority criterion — up to 3 at once — without losing the first.
+// A small superscript number marks each column's priority once 2+ are active.
 const CANDIDATE_COLS = [
   {
     key: 'name',
@@ -181,6 +186,7 @@ const ReactivationPanel = ({ profiles }) => {
   const [selectedTemplateByClient, setSelectedTemplateByClient] = useState({});
   const [testRecipientByTemplate, setTestRecipientByTemplate] = useState({});
   const [candidateSearch, setCandidateSearch] = useState('');
+  const [sortSignal, setSortSignal] = useState(null);
 
   const { data: templates } = useApi(() => api.whatsappTemplates({ category: 'reactivation' }), [refreshKey]);
   const { data: campaignStatus } = useApi(() => api.whatsappCampaignStatus(), [refreshKey]);
@@ -231,6 +237,11 @@ const ReactivationPanel = ({ profiles }) => {
       return name.includes(q) || (c.phone ?? '').toLowerCase().includes(q);
     });
   }, [candidates, candidateSearch]);
+
+  // DataTable does the actual multi-column sort internally (maxSortKeys={3}
+  // below); onSortChange just gives us a signal to reset back to page 1
+  // whenever the active sort changes.
+  const candidatesPagination = usePagination(filteredCandidates.length, 50, `${candidateSearch}|${sortSignal}`);
 
   const stats = useMemo(() => {
     const contacted = candidates.filter((c) => c.latestSend).length;
@@ -409,7 +420,7 @@ const ReactivationPanel = ({ profiles }) => {
       <Card
         eyebrow="Reactivación"
         title="Clientas en riesgo o perdidas"
-        info="Clientas con 45+ días sin visitar (más las que ya contactaste antes, aunque hayan vuelto). Elige una plantilla y da clic en el ícono de WhatsApp para abrir el chat con el mensaje listo. Haz clic en los encabezados para ordenar."
+        info="Clientas con 45+ días sin visitar (más las que ya contactaste antes, aunque hayan vuelto). Elige una plantilla y da clic en el ícono de WhatsApp para abrir el chat con el mensaje listo. Haz clic en un encabezado para ordenar por esa columna; haz clic en otra para agregarla como siguiente criterio (hasta 3, sin perder la anterior) — un número junto a la flecha marca la prioridad."
         action={
           <input
             placeholder="Buscar por nombre o teléfono..."
@@ -420,67 +431,83 @@ const ReactivationPanel = ({ profiles }) => {
         }
       >
         {filteredCandidates.length > 0 ? (
-          <DataTable
-            columns={CANDIDATE_COLS}
-            rows={filteredCandidates}
-            renderCell={(row, key) => {
-              if (key === 'name') {
-                const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || '—';
-                return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Avatar name={name} size="sm" tone="ink" />
-                    <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{name}</span>
-                  </div>
-                );
-              }
-              if (key === 'phone') return <span style={{ color: 'var(--text-secondary)' }}>{row.phone ?? '—'}</span>;
-              if (key === 'days_since')
-                return row.days_since_last != null ? (
-                  <span style={{ color: 'var(--text-body)' }}>{row.days_since_last} d</span>
-                ) : (
-                  <span style={{ color: 'var(--text-muted)' }}>—</span>
-                );
-              if (key === 'estado') return estadoBadge(row.churn_status);
-              if (key === 'campana') return campaignCell(row.latestSend);
-              if (key === 'accion') {
-                const hasTemplates = (templates ?? []).length > 0;
-                return (
-                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
-                    {(templates ?? []).length > 1 && (
-                      <select
-                        value={selectedTemplateByClient[row.client_id] ?? templates[0]?.id}
-                        onChange={(e) =>
-                          setSelectedTemplateByClient((prev) => ({ ...prev, [row.client_id]: e.target.value }))
+          <>
+            <DataTable
+              columns={CANDIDATE_COLS}
+              rows={filteredCandidates}
+              maxSortKeys={3}
+              onSortChange={(s) => setSortSignal(JSON.stringify(s))}
+              page={candidatesPagination.page}
+              pageSize={candidatesPagination.pageSize}
+              renderCell={(row, key) => {
+                if (key === 'name') {
+                  const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || '—';
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Avatar name={name} size="sm" tone="ink" />
+                      <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{name}</span>
+                    </div>
+                  );
+                }
+                if (key === 'phone') return <span style={{ color: 'var(--text-secondary)' }}>{row.phone ?? '—'}</span>;
+                if (key === 'days_since')
+                  return row.days_since_last != null ? (
+                    <span style={{ color: 'var(--text-body)' }}>{row.days_since_last} d</span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>—</span>
+                  );
+                if (key === 'estado') return estadoBadge(row.churn_status);
+                if (key === 'campana') return campaignCell(row.latestSend);
+                if (key === 'accion') {
+                  const hasTemplates = (templates ?? []).length > 0;
+                  return (
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                      {(templates ?? []).length > 1 && (
+                        <select
+                          value={selectedTemplateByClient[row.client_id] ?? templates[0]?.id}
+                          onChange={(e) =>
+                            setSelectedTemplateByClient((prev) => ({ ...prev, [row.client_id]: e.target.value }))
+                          }
+                          style={{ ...inputStyle, padding: '4px 8px', height: 30, fontSize: 'var(--text-xs)' }}
+                        >
+                          {templates.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <IconButton
+                        icon={MessageCircle}
+                        size="sm"
+                        variant="soft"
+                        title={
+                          !row.phone
+                            ? 'Sin teléfono'
+                            : !hasTemplates
+                              ? 'Crea una plantilla primero'
+                              : 'Enviar por WhatsApp'
                         }
-                        style={{ ...inputStyle, padding: '4px 8px', height: 30, fontSize: 'var(--text-xs)' }}
-                      >
-                        {templates.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <IconButton
-                      icon={MessageCircle}
-                      size="sm"
-                      variant="soft"
-                      title={
-                        !row.phone
-                          ? 'Sin teléfono'
-                          : !hasTemplates
-                            ? 'Crea una plantilla primero'
-                            : 'Enviar por WhatsApp'
-                      }
-                      disabled={!row.phone || !hasTemplates}
-                      onClick={() => handleSend(row)}
-                    />
-                  </div>
-                );
-              }
-              return row[key] ?? '—';
-            }}
-          />
+                        disabled={!row.phone || !hasTemplates}
+                        onClick={() => handleSend(row)}
+                      />
+                    </div>
+                  );
+                }
+                return row[key] ?? '—';
+              }}
+            />
+            <Pagination
+              page={candidatesPagination.page}
+              totalPages={candidatesPagination.totalPages}
+              pageSize={candidatesPagination.pageSize}
+              hasPrev={candidatesPagination.hasPrev}
+              hasNext={candidatesPagination.hasNext}
+              rangeLabel={candidatesPagination.rangeLabel}
+              onPageChange={candidatesPagination.setPage}
+              onPageSizeChange={candidatesPagination.setPageSize}
+            />
+          </>
         ) : (
           <EmptyState
             text={

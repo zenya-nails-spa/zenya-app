@@ -14,6 +14,8 @@ import Button from '../components/ui/button';
 import Select from '../components/ui/select';
 import SegmentedControl from '../components/ui/segmented-control';
 import InfoTip from '../components/ui/info-tip';
+import Pagination from '../components/ui/pagination';
+import { usePagination } from '../hooks/use-pagination';
 import ReactivationPanel from '../components/widgets/reactivation-panel';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
@@ -170,7 +172,31 @@ const Clients = ({ dateRange }) => {
   const { data: kpis } = useApi(() => api.kpis(dateRange), deps);
   const { data: retention } = useApi(() => api.clientRetention(dateRange), deps);
   const { data: stats } = useApi(() => api.clientStats(dateRange), deps);
-  const { data: clients, loading } = useApi(() => api.clients({ search: search || undefined, limit: 100 }), [search]);
+
+  // Directorio paginates server-side — the API enforces its own limit/offset
+  // and the full client list is too large to fetch all at once. The total
+  // count comes from a separate lightweight endpoint (same search filter)
+  // so "página X de Y" and the "1–25 de N" range match the other tables.
+  const [directorioPage, setDirectorioPage] = useState(1);
+  const [directorioPageSize, setDirectorioPageSize] = useState(25);
+  const directorioOffset = (directorioPage - 1) * directorioPageSize;
+  const { data: clients, loading } = useApi(
+    () => api.clients({ search: search || undefined, limit: directorioPageSize, offset: directorioOffset }),
+    [search, directorioPage, directorioPageSize]
+  );
+  const { data: directorioCountData } = useApi(() => api.clientsCount({ search: search || undefined }), [search]);
+  const directorioTotal = directorioCountData?.count ?? null;
+  const directorioTotalPages =
+    directorioTotal != null ? Math.max(1, Math.ceil(directorioTotal / directorioPageSize)) : null;
+  const directorioHasNext =
+    directorioTotal != null
+      ? directorioOffset + directorioPageSize < directorioTotal
+      : (clients?.length ?? 0) === directorioPageSize;
+  const directorioRangeLabel =
+    directorioTotal != null && (clients?.length ?? 0) > 0
+      ? `${directorioOffset + 1}–${Math.min(directorioOffset + directorioPageSize, directorioTotal)} de ${directorioTotal}`
+      : null;
+
   const { data: profilesData } = useApi(() => api.clientProfiles(dateRange), deps);
   const { data: clvData } = useApi(() => api.clvSegments(dateRange), deps);
 
@@ -222,6 +248,8 @@ const Clients = ({ dateRange }) => {
     }
     return rows;
   }, [retentionProfiles, statusFilter, retentionSearch]);
+
+  const retentionPagination = usePagination(filteredRetentionProfiles.length, 25, `${statusFilter}|${retentionSearch}`);
 
   const exportRetentionToExcel = async () => {
     const workbook = new ExcelJS.Workbook();
@@ -290,6 +318,7 @@ const Clients = ({ dateRange }) => {
     () => (clvSegmentFilter ? vipClients.filter((c) => c.segment === clvSegmentFilter) : vipClients),
     [vipClients, clvSegmentFilter]
   );
+  const clvPagination = usePagination(filteredVipClients.length, 25, clvSegmentFilter);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -407,12 +436,15 @@ const Clients = ({ dateRange }) => {
           <Card
             eyebrow="Directorio"
             title="Clientes"
-            info="Todas las clientas registradas en AgendaPro, hayan comprado o no. Este directorio no depende del periodo seleccionado. Se muestran hasta 100 resultados; usa el buscador para encontrar a alguien."
+            info="Todas las clientas registradas en AgendaPro, hayan comprado o no. Este directorio no depende del periodo seleccionado. Usa el buscador para encontrar a alguien o navega con la paginación."
             action={
               <input
                 placeholder="Buscar..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setDirectorioPage(1);
+                }}
                 style={{
                   padding: '4px 10px',
                   borderRadius: 6,
@@ -457,6 +489,21 @@ const Clients = ({ dateRange }) => {
                       </div>
                     );
                   return row[key] ?? '—';
+                }}
+              />
+            )}
+            {!loading && (clients?.length ?? 0) > 0 && (
+              <Pagination
+                page={directorioPage}
+                totalPages={directorioTotalPages}
+                pageSize={directorioPageSize}
+                hasPrev={directorioPage > 1}
+                hasNext={directorioHasNext}
+                rangeLabel={directorioRangeLabel}
+                onPageChange={setDirectorioPage}
+                onPageSizeChange={(v) => {
+                  setDirectorioPageSize(v);
+                  setDirectorioPage(1);
                 }}
               />
             )}
@@ -566,50 +613,64 @@ const Clients = ({ dateRange }) => {
             }
           >
             {filteredRetentionProfiles.length > 0 ? (
-              <DataTable
-                columns={RETENTION_COLS}
-                rows={filteredRetentionProfiles}
-                onSortedRowsChange={setRetentionSortedRows}
-                renderCell={(row, key) => {
-                  if (key === 'name') {
-                    const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || '—';
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Avatar name={name} size="sm" tone="ink" />
-                        <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{name}</span>
-                      </div>
-                    );
-                  }
-                  if (key === 'phone')
-                    return <span style={{ color: 'var(--text-secondary)' }}>{row.phone ?? '—'}</span>;
-                  if (key === 'last_visit')
-                    return <span style={{ color: 'var(--text-secondary)' }}>{row.last_visit ?? '—'}</span>;
-                  if (key === 'days_since') {
-                    const d = row.days_since_last ?? 0;
-                    return (
-                      <span
-                        style={{
-                          fontWeight: 600,
-                          color: d > 90 ? 'var(--negative)' : d > 45 ? 'var(--caution)' : 'var(--text-body)',
-                        }}
-                      >
-                        {d} d
-                      </span>
-                    );
-                  }
-                  if (key === 'avg_frequency')
-                    return <span style={{ color: 'var(--text-secondary)' }}>{row.avg_frequency ?? '—'}</span>;
-                  if (key === 'churn_status') return estadoBadge(row.churn_status);
-                  if (key === 'lifetime_revenue') return money(row.lifetime_revenue ?? 0);
-                  if (key === 'estimated_lost')
-                    return row.estimated_lost ? (
-                      <span style={{ fontWeight: 600, color: 'var(--negative)' }}>{money(row.estimated_lost)}</span>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>—</span>
-                    );
-                  return row[key] ?? '—';
-                }}
-              />
+              <>
+                <DataTable
+                  columns={RETENTION_COLS}
+                  rows={filteredRetentionProfiles}
+                  onSortedRowsChange={setRetentionSortedRows}
+                  page={retentionPagination.page}
+                  pageSize={retentionPagination.pageSize}
+                  renderCell={(row, key) => {
+                    if (key === 'name') {
+                      const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || '—';
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <Avatar name={name} size="sm" tone="ink" />
+                          <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{name}</span>
+                        </div>
+                      );
+                    }
+                    if (key === 'phone')
+                      return <span style={{ color: 'var(--text-secondary)' }}>{row.phone ?? '—'}</span>;
+                    if (key === 'last_visit')
+                      return <span style={{ color: 'var(--text-secondary)' }}>{row.last_visit ?? '—'}</span>;
+                    if (key === 'days_since') {
+                      const d = row.days_since_last ?? 0;
+                      return (
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: d > 90 ? 'var(--negative)' : d > 45 ? 'var(--caution)' : 'var(--text-body)',
+                          }}
+                        >
+                          {d} d
+                        </span>
+                      );
+                    }
+                    if (key === 'avg_frequency')
+                      return <span style={{ color: 'var(--text-secondary)' }}>{row.avg_frequency ?? '—'}</span>;
+                    if (key === 'churn_status') return estadoBadge(row.churn_status);
+                    if (key === 'lifetime_revenue') return money(row.lifetime_revenue ?? 0);
+                    if (key === 'estimated_lost')
+                      return row.estimated_lost ? (
+                        <span style={{ fontWeight: 600, color: 'var(--negative)' }}>{money(row.estimated_lost)}</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      );
+                    return row[key] ?? '—';
+                  }}
+                />
+                <Pagination
+                  page={retentionPagination.page}
+                  totalPages={retentionPagination.totalPages}
+                  pageSize={retentionPagination.pageSize}
+                  hasPrev={retentionPagination.hasPrev}
+                  hasNext={retentionPagination.hasNext}
+                  rangeLabel={retentionPagination.rangeLabel}
+                  onPageChange={retentionPagination.setPage}
+                  onPageSizeChange={retentionPagination.setPageSize}
+                />
+              </>
             ) : (
               <div
                 style={{
@@ -788,41 +849,55 @@ const Clients = ({ dateRange }) => {
             }
           >
             {filteredVipClients.length > 0 ? (
-              <DataTable
-                columns={VIP_COLS}
-                rows={filteredVipClients}
-                renderCell={(row, key) => {
-                  if (key === 'name') {
-                    const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || row.name || '—';
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Avatar name={name} size="sm" tone="rose" />
-                        <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{name}</span>
-                      </div>
-                    );
-                  }
-                  if (key === 'segment') {
-                    const seg = row.segment ?? '—';
-                    return (
-                      <Badge tone={SEG_TONE[seg] ?? 'neutral'} size="sm" dot>
-                        {seg}
-                      </Badge>
-                    );
-                  }
-                  if (key === 'lifetime_revenue')
-                    return (
-                      <span style={{ fontWeight: 600, color: 'var(--text-display)' }}>
-                        {money(row.lifetime_revenue ?? 0)}
-                      </span>
-                    );
-                  if (key === 'avg_ticket') return money(row.avg_ticket ?? 0);
-                  if (key === 'last_visit')
-                    return <span style={{ color: 'var(--text-secondary)' }}>{row.last_visit ?? '—'}</span>;
-                  if (key === 'days_since')
-                    return <span style={{ color: 'var(--text-secondary)' }}>{row.days_since_last ?? '—'} d</span>;
-                  return row[key] ?? '—';
-                }}
-              />
+              <>
+                <DataTable
+                  columns={VIP_COLS}
+                  rows={filteredVipClients}
+                  page={clvPagination.page}
+                  pageSize={clvPagination.pageSize}
+                  renderCell={(row, key) => {
+                    if (key === 'name') {
+                      const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || row.name || '—';
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <Avatar name={name} size="sm" tone="rose" />
+                          <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{name}</span>
+                        </div>
+                      );
+                    }
+                    if (key === 'segment') {
+                      const seg = row.segment ?? '—';
+                      return (
+                        <Badge tone={SEG_TONE[seg] ?? 'neutral'} size="sm" dot>
+                          {seg}
+                        </Badge>
+                      );
+                    }
+                    if (key === 'lifetime_revenue')
+                      return (
+                        <span style={{ fontWeight: 600, color: 'var(--text-display)' }}>
+                          {money(row.lifetime_revenue ?? 0)}
+                        </span>
+                      );
+                    if (key === 'avg_ticket') return money(row.avg_ticket ?? 0);
+                    if (key === 'last_visit')
+                      return <span style={{ color: 'var(--text-secondary)' }}>{row.last_visit ?? '—'}</span>;
+                    if (key === 'days_since')
+                      return <span style={{ color: 'var(--text-secondary)' }}>{row.days_since_last ?? '—'} d</span>;
+                    return row[key] ?? '—';
+                  }}
+                />
+                <Pagination
+                  page={clvPagination.page}
+                  totalPages={clvPagination.totalPages}
+                  pageSize={clvPagination.pageSize}
+                  hasPrev={clvPagination.hasPrev}
+                  hasNext={clvPagination.hasNext}
+                  rangeLabel={clvPagination.rangeLabel}
+                  onPageChange={clvPagination.setPage}
+                  onPageSizeChange={clvPagination.setPageSize}
+                />
+              </>
             ) : (
               <div
                 style={{

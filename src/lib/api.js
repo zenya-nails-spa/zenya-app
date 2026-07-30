@@ -63,6 +63,7 @@ export const api = {
   salesSummary: (params) => get('/sales/summary', params),
   bookings: (params) => get('/bookings', params),
   clients: (params) => get('/clients', params),
+  clientsCount: (params) => get('/clients/count', params),
   professionals: () => get('/professionals'),
   services: () => get('/services'),
   businessProfile: () => get('/business-profile'),
