@@ -189,7 +189,7 @@ const Gastos = () => {
     setSyncing(true);
     setSyncMsg(null);
     try {
-      const res = await api.syncGastos();
+      const res = await api.syncGastos({ month: `${month}-01` });
       setSyncMsg(
         res.status === 'ok'
           ? `Hoja sincronizada: ${res.egresos_count} egresos y ${res.insumos_count} insumos`
