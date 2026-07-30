@@ -78,9 +78,9 @@ export const api = {
   updateWhatsappTemplate: (id, body) => put(`/whatsapp/templates/${id}`, body),
   createWhatsappSend: (body) => post('/whatsapp/campaign-sends', body),
   whatsappCampaignStatus: () => get('/whatsapp/campaign-status'),
-  appointmentReminders: () => get('/whatsapp/appointment-reminders'),
-  retouchReminders: () => get('/whatsapp/retouch-reminders'),
-  newClientFeedback: () => get('/whatsapp/new-client-feedback'),
+  appointmentReminders: (params) => get('/whatsapp/appointment-reminders', params),
+  retouchReminders: (params) => get('/whatsapp/retouch-reminders', params),
+  newClientFeedback: (params) => get('/whatsapp/new-client-feedback', params),
   dismissReminder: (body) => post('/whatsapp/dismissals', body),
   reminderEffectiveness: () => get('/whatsapp/reminder-effectiveness'),
 

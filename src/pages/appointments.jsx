@@ -378,7 +378,6 @@ Esperamos que te encuentres muy bien ☺️ Te contactamos para recordarte que y
 ¿Te gustaría agendar tu cita? 🥰
 
 Será un placer atenderte 💕 Bonito día! ☺️`}
-        storageKey="zenya.retouchReminders.lastSync"
         emptyBeforeSyncText='Da clic en "Sincronizar clientas de retoque" para ver quién tiene retoque pendiente.'
         emptyAfterSyncText="No hay clientas con retoque pendiente hoy."
         dismissable
@@ -406,7 +405,6 @@ Si tienes un momento, nos encantaría que nos compartieras tu opinión sobre la 
 Tu experiencia es muy valiosa para nosotras y nos ayuda a seguir creando momentos especiales para cada persona que nos visita.
 
 ¡Gracias por tu confianza y por elegir Zenya! 💕`}
-        storageKey="zenya.newClientFeedback.lastSync"
         emptyBeforeSyncText='Da clic en "Sincronizar clientas nuevas de hoy" para ver quién visitó por primera vez.'
         emptyAfterSyncText="No hay clientas nuevas hoy."
         dismissable
