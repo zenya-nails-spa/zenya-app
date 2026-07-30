@@ -9,8 +9,10 @@ async function get(path, params = {}) {
   return res.json();
 }
 
-async function post(path, body) {
-  const res = await fetch(`${BASE_URL}${path}`, {
+async function post(path, body, params) {
+  const url = new URL(`${BASE_URL}${path}`);
+  if (params) Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, v));
+  const res = await fetch(url.toString(), {
     method: 'POST',
     headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -51,7 +53,7 @@ export const api = {
   unassignedServices: (params) => get('/analytics/unassigned-services', params),
   sharedProviderBreakdown: (params) => get('/analytics/shared-provider-breakdown', params),
   gastos: (params) => get('/analytics/gastos', params),
-  syncGastos: () => post('/analytics/gastos/sync'),
+  syncGastos: (params) => post('/analytics/gastos/sync', {}, params),
   cierreSemanal: (params) => get('/analytics/cierre-semanal', params),
   clientProfiles: (params) => get('/analytics/client-profiles', params),
   clvSegments: (params) => get('/analytics/clv-segments', params),
