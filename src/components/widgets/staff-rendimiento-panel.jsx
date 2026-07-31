@@ -36,6 +36,39 @@ const RENDIMIENTO_COLS = [
   },
 ];
 
+const PureProfitCallout = ({ title, note, amount }) =>
+  amount > 0 && (
+    <div
+      style={{
+        marginTop: 10,
+        padding: '12px 14px',
+        borderRadius: 'var(--radius-sm)',
+        background: 'var(--positive-soft)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        flexWrap: 'wrap',
+      }}
+    >
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>
+        {title}
+        <br />
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{note}</span>
+      </span>
+      <span
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 'var(--text-xl)',
+          fontWeight: 700,
+          color: 'var(--positive)',
+        }}
+      >
+        {money(amount)}
+      </span>
+    </div>
+  );
+
 const StaffRendimientoPanel = () => {
   const [month, setMonth] = useState(currentMonthValue());
   const [period, setPeriod] = useState('mes');
@@ -53,6 +86,7 @@ const StaffRendimientoPanel = () => {
         total_margin: data.monthly_total_margin,
         total_rendimiento_pct: data.monthly_total_rendimiento_pct,
         unassigned_generated: data.unassigned_generated,
+        unassigned_provider_generated: data.unassigned_provider_generated,
       };
     }
     const idx = Number(period.replace('sem', '')) - 1;
@@ -66,6 +100,7 @@ const StaffRendimientoPanel = () => {
       total_margin: week.total_margin,
       total_rendimiento_pct: week.total_rendimiento_pct,
       unassigned_generated: week.unassigned_generated,
+      unassigned_provider_generated: week.unassigned_provider_generated,
     };
   }, [data, period]);
 
@@ -112,7 +147,7 @@ const StaffRendimientoPanel = () => {
               caption={selected.label}
               icon="TrendingUp"
               numeralStyle="sans"
-              info="Ingresos por servicios de todo el personal en el periodo elegido, incluyendo ventas de Lashes/Cosmetología sin nombre identificado en la nota de la cita."
+              info="Ingresos por servicios de todo el personal en el periodo elegido, incluyendo ventas sin nombre identificado en Lashes/Cosmetología y servicios sin ninguna colaboradora asignada en AgendaPro."
             />
             <StatCard
               label="Total pagado"
@@ -185,40 +220,16 @@ const StaffRendimientoPanel = () => {
               </div>
             )}
 
-            {selected.unassigned_generated > 0 && (
-              <div
-                style={{
-                  marginTop: 14,
-                  padding: '12px 14px',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'var(--positive-soft)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>
-                  No asignados en Lashes/Cosmetología — {selected.label}
-                  <br />
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                    Ventas sin un nombre identificado en la nota de la cita: no se les paga comisión, así que es
-                    ganancia pura para ti.
-                  </span>
-                </span>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 'var(--text-xl)',
-                    fontWeight: 700,
-                    color: 'var(--positive)',
-                  }}
-                >
-                  {money(selected.unassigned_generated)}
-                </span>
-              </div>
-            )}
+            <PureProfitCallout
+              title={`No asignados en Lashes/Cosmetología — ${selected.label}`}
+              note="Ventas sin un nombre identificado en la nota de la cita: no se les paga comisión, así que es ganancia pura para ti."
+              amount={selected.unassigned_generated}
+            />
+            <PureProfitCallout
+              title={`Servicios sin colaboradora asignada — ${selected.label}`}
+              note="Ventas sin ningún profesional asignado en AgendaPro (diseños, cejas, extras de walk-in): tampoco se les paga comisión."
+              amount={selected.unassigned_provider_generated}
+            />
           </Card>
         </>
       )}
