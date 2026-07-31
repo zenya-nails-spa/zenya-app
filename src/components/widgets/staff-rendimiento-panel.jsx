@@ -103,7 +103,7 @@ const StaffRendimientoPanel = () => {
         </div>
       ) : (
         <>
-          <div className="z-status-row">
+          <div className="z-kpi-grid">
             <StatCard
               label="Total generado"
               value={money(selected.total_generated)}
@@ -123,10 +123,18 @@ const StaffRendimientoPanel = () => {
             <StatCard
               label="Te queda"
               value={money(selected.total_margin)}
-              caption={`${pct(selected.total_rendimiento_pct)} de lo generado`}
+              caption="generado − pagado"
+              icon="Wallet"
+              numeralStyle="sans"
+              info="Margen sobre lo generado, en pesos: generado − pagado."
+            />
+            <StatCard
+              label="Rendimiento"
+              value={pct(selected.total_rendimiento_pct)}
+              caption="te queda / generado"
               icon="Target"
               numeralStyle="sans"
-              info="Margen sobre lo generado: generado − pagado. El porcentaje en la leyenda es ese margen sobre el total generado por el equipo."
+              info="El margen de arriba, como porcentaje de lo generado por el equipo."
             />
           </div>
 
