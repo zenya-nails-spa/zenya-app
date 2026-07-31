@@ -40,6 +40,34 @@ const INSUMOS_COLS = [
   { key: 'precio', label: 'Precio', align: 'right', sortable: true, sortValue: (r) => r.precio },
 ];
 
+const MAYOREO_COLS = [
+  { key: 'insumo', label: 'Insumo' },
+  { key: 'tipo', label: 'Tipo' },
+  { key: 'meses', label: 'Meses con compra', align: 'right', sortable: true, sortValue: (r) => r.meses_con_compra },
+  {
+    key: 'veces_mismo_mes',
+    label: 'Máx. en un mes',
+    align: 'right',
+    sortable: true,
+    sortValue: (r) => r.veces_mismo_mes,
+  },
+  {
+    key: 'veces_este_anio',
+    label: 'Compras este año',
+    align: 'right',
+    sortable: true,
+    sortValue: (r) => r.veces_este_anio,
+  },
+  {
+    key: 'veces_comprado',
+    label: 'Veces comprado',
+    align: 'right',
+    sortable: true,
+    sortValue: (r) => r.veces_comprado,
+  },
+  { key: 'ultima_compra', label: 'Última compra', sortable: true, sortValue: (r) => r.ultima_compra },
+];
+
 function currentMonthValue() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -184,6 +212,7 @@ const Gastos = () => {
   const [syncMsg, setSyncMsg] = useState(null);
   const { data } = useApi(() => api.gastos({ month: `${month}-01` }), [month, refreshKey]);
   const { data: cierre } = useApi(() => api.cierreSemanal({ month: `${month}-01` }), [month, refreshKey]);
+  const { data: mayoreo } = useApi(() => api.mayoreoGastos(), [refreshKey]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -626,6 +655,36 @@ const Gastos = () => {
                 );
               if (key === 'precio')
                 return <span style={{ fontWeight: 600, color: 'var(--text-display)' }}>{money(row.precio)}</span>;
+              return row[key] ?? '—';
+            }}
+          />
+        ) : (
+          <EmptyState />
+        )}
+      </Card>
+
+      <Card
+        eyebrow="Insumos"
+        title="Oportunidades de compra a mayoreo"
+        info="Insumos candidatos a comprar por mayoreo: aparecen en más de la mitad de los meses del historial, o se compraron más de una vez en un mismo mes, o se compraron 3 veces o más desde que empezó el año."
+      >
+        {(mayoreo?.oportunidades ?? []).length > 0 ? (
+          <DataTable
+            columns={MAYOREO_COLS}
+            rows={mayoreo.oportunidades}
+            renderCell={(row, key) => {
+              if (key === 'insumo')
+                return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.insumo}</span>;
+              if (key === 'tipo')
+                return row.tipo ? (
+                  <Badge tone={FUENTE_TONE[row.tipo] ?? 'neutral'} size="sm">
+                    {row.tipo}
+                  </Badge>
+                ) : (
+                  '—'
+                );
+              if (key === 'meses') return `${row.meses_con_compra} / ${row.meses_totales}`;
+              if (key === 'ultima_compra') return row.ultima_compra ?? '—';
               return row[key] ?? '—';
             }}
           />
