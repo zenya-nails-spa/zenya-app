@@ -180,7 +180,7 @@ const CANDIDATE_COLS = [
   { key: 'accion', label: '', align: 'right' },
 ];
 
-const ReactivationPanel = ({ profiles }) => {
+const ReactivationPanel = ({ profiles, onSelectClient }) => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingTemplate, setEditingTemplate] = useState(null); // null | 'new' | template object
   const [selectedTemplateByClient, setSelectedTemplateByClient] = useState({});
@@ -445,7 +445,14 @@ const ReactivationPanel = ({ profiles }) => {
                   return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Avatar name={name} size="sm" tone="ink" />
-                      <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{name}</span>
+                      <button
+                        type="button"
+                        className="z-client-name"
+                        title="Ver detalle de la clienta"
+                        onClick={() => onSelectClient?.(row.client_id)}
+                      >
+                        {name}
+                      </button>
                     </div>
                   );
                 }

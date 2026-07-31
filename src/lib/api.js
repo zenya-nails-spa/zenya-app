@@ -67,6 +67,7 @@ export const api = {
   bookings: (params) => get('/bookings', params),
   clients: (params) => get('/clients', params),
   clientsCount: (params) => get('/clients/count', params),
+  clientHistory: (clientId) => get(`/clients/${clientId}/history`),
   professionals: () => get('/professionals'),
   services: () => get('/services'),
   businessProfile: () => get('/business-profile'),
