@@ -26,6 +26,7 @@ const RENDIMIENTO_COLS = [
   { key: 'name', label: 'Empleada' },
   { key: 'generated', label: 'Generado', align: 'right', sortable: true, sortValue: (r) => r.generated },
   { key: 'paid', label: 'Pagado', align: 'right', sortable: true, sortValue: (r) => r.paid },
+  { key: 'margin', label: 'Te queda', align: 'right', sortable: true, sortValue: (r) => r.margin },
   {
     key: 'rendimiento_pct',
     label: 'Rendimiento',
@@ -49,6 +50,7 @@ const StaffRendimientoPanel = () => {
         entries: data.monthly,
         total_generated: data.monthly_total_generated,
         total_paid: data.monthly_total_paid,
+        total_margin: data.monthly_total_margin,
         total_rendimiento_pct: data.monthly_total_rendimiento_pct,
       };
     }
@@ -60,6 +62,7 @@ const StaffRendimientoPanel = () => {
       entries: week.entries,
       total_generated: week.total_generated,
       total_paid: week.total_paid,
+      total_margin: week.total_margin,
       total_rendimiento_pct: week.total_rendimiento_pct,
     };
   }, [data, period]);
@@ -118,12 +121,12 @@ const StaffRendimientoPanel = () => {
               info="Suma de los pagos por colaboradora registrados en la hoja de Gastos para el periodo elegido."
             />
             <StatCard
-              label="Rendimiento global"
-              value={pct(selected.total_rendimiento_pct)}
-              caption="lo que te queda"
+              label="Te queda"
+              value={money(selected.total_margin)}
+              caption={`${pct(selected.total_rendimiento_pct)} de lo generado`}
               icon="Target"
               numeralStyle="sans"
-              info="Margen sobre lo generado: (generado − pagado) / generado. Es el porcentaje de lo que generó el equipo que te queda a ti."
+              info="Margen sobre lo generado: generado − pagado. El porcentaje en la leyenda es ese margen sobre el total generado por el equipo."
             />
           </div>
 
@@ -141,6 +144,14 @@ const StaffRendimientoPanel = () => {
                     return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.name}</span>;
                   if (key === 'generated') return money(row.generated);
                   if (key === 'paid') return money(row.paid);
+                  if (key === 'margin')
+                    return (
+                      <span
+                        style={{ fontWeight: 600, color: row.margin < 0 ? 'var(--negative)' : 'var(--text-display)' }}
+                      >
+                        {money(row.margin)}
+                      </span>
+                    );
                   if (key === 'rendimiento_pct')
                     return row.rendimiento_pct != null ? (
                       <span style={{ fontWeight: 600, color: 'var(--text-display)' }}>{pct(row.rendimiento_pct)}</span>
