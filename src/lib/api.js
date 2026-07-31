@@ -40,6 +40,7 @@ export const api = {
   revenueByDay: (params) => get('/analytics/revenue-by-day', params),
   topServices: (params) => get('/analytics/top-services', params),
   staffPerformance: (params) => get('/analytics/staff-performance', params),
+  staffRendimiento: (params) => get('/analytics/staff-rendimiento', params),
   paymentMethodsBreakdown: (params) => get('/analytics/payment-methods-breakdown', params),
   clientRetention: (params) => get('/analytics/client-retention', params),
   clientStats: (params) => get('/analytics/client-stats', params),
