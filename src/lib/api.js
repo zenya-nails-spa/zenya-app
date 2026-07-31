@@ -55,6 +55,7 @@ export const api = {
   sharedProviderBreakdown: (params) => get('/analytics/shared-provider-breakdown', params),
   gastos: (params) => get('/analytics/gastos', params),
   syncGastos: (params) => post('/analytics/gastos/sync', {}, params),
+  mayoreoGastos: () => get('/analytics/gastos/mayoreo'),
   cierreSemanal: (params) => get('/analytics/cierre-semanal', params),
   clientProfiles: (params) => get('/analytics/client-profiles', params),
   clvSegments: (params) => get('/analytics/clv-segments', params),
