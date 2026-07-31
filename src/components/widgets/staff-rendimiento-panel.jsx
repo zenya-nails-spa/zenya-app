@@ -52,6 +52,7 @@ const StaffRendimientoPanel = () => {
         total_paid: data.monthly_total_paid,
         total_margin: data.monthly_total_margin,
         total_rendimiento_pct: data.monthly_total_rendimiento_pct,
+        unassigned_generated: data.unassigned_generated,
       };
     }
     const idx = Number(period.replace('sem', '')) - 1;
@@ -64,6 +65,7 @@ const StaffRendimientoPanel = () => {
       total_paid: week.total_paid,
       total_margin: week.total_margin,
       total_rendimiento_pct: week.total_rendimiento_pct,
+      unassigned_generated: week.unassigned_generated,
     };
   }, [data, period]);
 
@@ -183,19 +185,38 @@ const StaffRendimientoPanel = () => {
               </div>
             )}
 
-            {data.unassigned_generated > 0 && (
+            {selected.unassigned_generated > 0 && (
               <div
                 style={{
                   marginTop: 14,
-                  paddingTop: 14,
-                  borderTop: '1px solid var(--border-subtle)',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--text-muted)',
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--positive-soft)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  flexWrap: 'wrap',
                 }}
               >
-                Incluye {money(data.unassigned_generated)} de ventas en Lashes/Cosmetología del mes sin un nombre
-                identificado en la nota de la cita — cuentan en el total del equipo pero no en ninguna fila individual.
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>
+                  No asignados en Lashes/Cosmetología — {selected.label}
+                  <br />
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                    Ventas sin un nombre identificado en la nota de la cita: no se les paga comisión, así que es
+                    ganancia pura para ti.
+                  </span>
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 'var(--text-xl)',
+                    fontWeight: 700,
+                    color: 'var(--positive)',
+                  }}
+                >
+                  {money(selected.unassigned_generated)}
+                </span>
               </div>
             )}
           </Card>
