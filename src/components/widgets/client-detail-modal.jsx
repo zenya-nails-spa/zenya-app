@@ -281,7 +281,12 @@ const ClientDetailModal = ({ clientId, onClose }) => {
                 }}
               >
                 <MiniStat icon={Repeat} label="Visitas" value={stats.total_visits} caption="compras completadas" />
-                <MiniStat icon={DollarSign} label="Ingresos" value={money(stats.lifetime_revenue)} caption="histórico" />
+                <MiniStat
+                  icon={DollarSign}
+                  label="Ingresos"
+                  value={money(stats.lifetime_revenue)}
+                  caption="histórico"
+                />
                 <MiniStat icon={DollarSign} label="Ticket prom." value={money(stats.avg_ticket)} />
                 <MiniStat
                   icon={Clock}
