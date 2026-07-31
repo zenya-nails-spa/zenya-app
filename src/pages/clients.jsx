@@ -17,6 +17,7 @@ import InfoTip from '../components/ui/info-tip';
 import Pagination from '../components/ui/pagination';
 import { usePagination } from '../hooks/use-pagination';
 import ReactivationPanel from '../components/widgets/reactivation-panel';
+import ClientDetailModal from '../components/widgets/client-detail-modal';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
@@ -167,6 +168,7 @@ const Clients = ({ dateRange }) => {
   const [retentionSearch, setRetentionSearch] = useState('');
   const [retentionSortedRows, setRetentionSortedRows] = useState([]);
   const [clvSegmentFilter, setClvSegmentFilter] = useState(null);
+  const [selectedClientId, setSelectedClientId] = useState(null);
   const deps = [dateRange.from_date, dateRange.to_date];
 
   const { data: kpis } = useApi(() => api.kpis(dateRange), deps);
@@ -485,7 +487,14 @@ const Clients = ({ dateRange }) => {
                     return (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <Avatar name={row.name} size="sm" tone="ink" />
-                        <span style={{ fontWeight: 'var(--fw-medium)', color: 'var(--text-heading)' }}>{row.name}</span>
+                        <button
+                          type="button"
+                          className="z-client-name"
+                          title="Ver detalle de la clienta"
+                          onClick={() => setSelectedClientId(row.id)}
+                        >
+                          {row.name}
+                        </button>
                       </div>
                     );
                   return row[key] ?? '—';
@@ -626,7 +635,14 @@ const Clients = ({ dateRange }) => {
                       return (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <Avatar name={name} size="sm" tone="ink" />
-                          <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{name}</span>
+                          <button
+                            type="button"
+                            className="z-client-name"
+                            title="Ver detalle de la clienta"
+                            onClick={() => setSelectedClientId(row.client_id)}
+                          >
+                            {name}
+                          </button>
                         </div>
                       );
                     }
@@ -733,7 +749,9 @@ const Clients = ({ dateRange }) => {
       )}
 
       {/* ── REACTIVACIÓN TAB ── */}
-      {tab === 'reactivacion' && <ReactivationPanel profiles={profilesData} />}
+      {tab === 'reactivacion' && (
+        <ReactivationPanel profiles={profilesData} onSelectClient={setSelectedClientId} />
+      )}
 
       {/* ── CLV & SEGMENTOS TAB ── */}
       {tab === 'clv' && (
@@ -861,7 +879,14 @@ const Clients = ({ dateRange }) => {
                       return (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <Avatar name={name} size="sm" tone="rose" />
-                          <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{name}</span>
+                          <button
+                            type="button"
+                            className="z-client-name"
+                            title="Ver detalle de la clienta"
+                            onClick={() => setSelectedClientId(row.client_id)}
+                          >
+                            {name}
+                          </button>
                         </div>
                       );
                     }
@@ -914,6 +939,8 @@ const Clients = ({ dateRange }) => {
           </Card>
         </>
       )}
+
+      <ClientDetailModal clientId={selectedClientId} onClose={() => setSelectedClientId(null)} />
     </div>
   );
 };

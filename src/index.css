@@ -270,6 +270,16 @@ body {
 .z-row:hover {
   background: var(--rose-50);
 }
+.z-client-name {
+  all: unset;
+  cursor: pointer;
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+}
+.z-client-name:hover {
+  color: var(--text-brand);
+  text-decoration: underline;
+}
 .z-sidebar {
   transition: width var(--dur-base) var(--ease-soft);
 }
