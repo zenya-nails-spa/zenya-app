@@ -749,9 +749,7 @@ const Clients = ({ dateRange }) => {
       )}
 
       {/* ── REACTIVACIÓN TAB ── */}
-      {tab === 'reactivacion' && (
-        <ReactivationPanel profiles={profilesData} onSelectClient={setSelectedClientId} />
-      )}
+      {tab === 'reactivacion' && <ReactivationPanel profiles={profilesData} onSelectClient={setSelectedClientId} />}
 
       {/* ── CLV & SEGMENTOS TAB ── */}
       {tab === 'clv' && (
