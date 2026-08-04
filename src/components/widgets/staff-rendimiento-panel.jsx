@@ -86,7 +86,6 @@ const StaffRendimientoPanel = () => {
         total_margin: data.monthly_total_margin,
         total_rendimiento_pct: data.monthly_total_rendimiento_pct,
         unassigned_generated: data.unassigned_generated,
-        unassigned_provider_generated: data.unassigned_provider_generated,
       };
     }
     const idx = Number(period.replace('sem', '')) - 1;
@@ -100,7 +99,6 @@ const StaffRendimientoPanel = () => {
       total_margin: week.total_margin,
       total_rendimiento_pct: week.total_rendimiento_pct,
       unassigned_generated: week.unassigned_generated,
-      unassigned_provider_generated: week.unassigned_provider_generated,
     };
   }, [data, period]);
 
@@ -147,7 +145,7 @@ const StaffRendimientoPanel = () => {
               caption={selected.label}
               icon="TrendingUp"
               numeralStyle="sans"
-              info="Ingresos por servicios de todo el personal en el periodo elegido, incluyendo ventas sin nombre identificado en Lashes/Cosmetología y servicios sin ninguna colaboradora asignada en AgendaPro."
+              info="Ingresos de servicios y productos de todo el personal en el periodo elegido, incluyendo ventas sin nombre identificado en Lashes/Cosmetología y servicios o productos sin ninguna colaboradora asignada en AgendaPro."
             />
             <StatCard
               label="Total pagado"
@@ -178,14 +176,14 @@ const StaffRendimientoPanel = () => {
           <Card
             eyebrow="Rendimiento"
             title={`Por empleada — ${selected.label}`}
-            info="Rendimiento = (generado − pagado) / generado — el margen que te queda de lo que generó cada empleada. '—' significa que no generó ventas propias en este periodo (ej. recepción), pero su pago sigue contando en el total del equipo. La fila 'No asignado' son servicios sin ninguna colaboradora asignada en AgendaPro (mismos que 'Servicios no asignados' en Desempeño) — no pagan comisión, así que es 100% ganancia."
+            info="Rendimiento = (generado − pagado) / generado — el margen que te queda de lo que generó cada empleada. '—' significa que no generó ventas propias en este periodo (ej. recepción), pero su pago sigue contando en el total del equipo. 'No asignado' y 'Productos no asignados' son servicios y productos sin ninguna colaboradora asignada en AgendaPro (los servicios son los mismos que 'Servicios no asignados' en Desempeño) — no pagan comisión, así que son 100% ganancia."
           >
             {selected.entries.length > 0 ? (
               <DataTable
                 columns={RENDIMIENTO_COLS}
                 rows={selected.entries}
                 renderCell={(row, key) => {
-                  const isUnassigned = row.name === 'No asignado';
+                  const isUnassigned = row.name === 'No asignado' || row.name === 'Productos no asignados';
                   if (key === 'name')
                     return (
                       <span
