@@ -178,15 +178,26 @@ const StaffRendimientoPanel = () => {
           <Card
             eyebrow="Rendimiento"
             title={`Por empleada — ${selected.label}`}
-            info="Rendimiento = (generado − pagado) / generado — el margen que te queda de lo que generó cada empleada. '—' significa que no generó ventas propias en este periodo (ej. recepción), pero su pago sigue contando en el total del equipo."
+            info="Rendimiento = (generado − pagado) / generado — el margen que te queda de lo que generó cada empleada. '—' significa que no generó ventas propias en este periodo (ej. recepción), pero su pago sigue contando en el total del equipo. La fila 'No asignado' son servicios sin ninguna colaboradora asignada en AgendaPro (mismos que 'Servicios no asignados' en Desempeño) — no pagan comisión, así que es 100% ganancia."
           >
             {selected.entries.length > 0 ? (
               <DataTable
                 columns={RENDIMIENTO_COLS}
                 rows={selected.entries}
                 renderCell={(row, key) => {
+                  const isUnassigned = row.name === 'No asignado';
                   if (key === 'name')
-                    return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.name}</span>;
+                    return (
+                      <span
+                        style={{
+                          fontWeight: isUnassigned ? 500 : 600,
+                          fontStyle: isUnassigned ? 'italic' : 'normal',
+                          color: isUnassigned ? 'var(--text-muted)' : 'var(--text-heading)',
+                        }}
+                      >
+                        {row.name}
+                      </span>
+                    );
                   if (key === 'generated') return money(row.generated);
                   if (key === 'paid') return money(row.paid);
                   if (key === 'margin')
@@ -222,13 +233,8 @@ const StaffRendimientoPanel = () => {
 
             <PureProfitCallout
               title={`No asignados en Lashes/Cosmetología — ${selected.label}`}
-              note="Ventas sin un nombre identificado en la nota de la cita: no se les paga comisión, así que es ganancia pura para ti."
+              note="Ventas sin un nombre identificado en la nota de la cita: no se les paga comisión, así que es ganancia pura para ti. Estas no aparecen como fila propia porque no se puede saber si son de Lashes o Cosmetología."
               amount={selected.unassigned_generated}
-            />
-            <PureProfitCallout
-              title={`Servicios sin colaboradora asignada — ${selected.label}`}
-              note="Ventas sin ningún profesional asignado en AgendaPro (diseños, cejas, extras de walk-in): tampoco se les paga comisión."
-              amount={selected.unassigned_provider_generated}
             />
           </Card>
         </>
