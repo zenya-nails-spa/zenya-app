@@ -21,8 +21,10 @@ async function post(path, body, params) {
   return res.json();
 }
 
-async function put(path, body) {
-  const res = await fetch(`${BASE_URL}${path}`, {
+async function put(path, body, params) {
+  const url = new URL(`${BASE_URL}${path}`);
+  if (params) Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, v));
+  const res = await fetch(url.toString(), {
     method: 'PUT',
     headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -56,6 +58,8 @@ export const api = {
   gastos: (params) => get('/analytics/gastos', params),
   syncGastos: (params) => post('/analytics/gastos/sync', {}, params),
   mayoreoGastos: () => get('/analytics/gastos/mayoreo'),
+  revenueGoal: (params) => get('/analytics/revenue-goal', params),
+  updateRevenueGoal: (body, params) => put('/analytics/revenue-goal', body, params),
   cierreSemanal: (params) => get('/analytics/cierre-semanal', params),
   clientProfiles: (params) => get('/analytics/client-profiles', params),
   clvSegments: (params) => get('/analytics/clv-segments', params),
