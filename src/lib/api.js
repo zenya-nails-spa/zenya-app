@@ -41,6 +41,7 @@ export const api = {
   kpis: (params) => get('/analytics/kpis', params),
   revenueByDay: (params) => get('/analytics/revenue-by-day', params),
   topServices: (params) => get('/analytics/top-services', params),
+  topProducts: (params) => get('/analytics/top-products', params),
   staffPerformance: (params) => get('/analytics/staff-performance', params),
   staffRendimiento: (params) => get('/analytics/staff-rendimiento', params),
   paymentMethodsBreakdown: (params) => get('/analytics/payment-methods-breakdown', params),
