@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Cake, Phone, Mail, Calendar, Wallet, Clock } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApi } from '../hooks/use-api';
 import { applyTheme } from '../App';
@@ -32,10 +33,46 @@ const labelStyle = {
   marginBottom: 5,
 };
 
-const Field = ({ label, value, onChange, type = 'text' }) => (
+const Field = ({ label, value, onChange, type = 'text', icon: Icon, suffix }) => (
   <div style={{ display: 'flex', flexDirection: 'column' }}>
     <label style={labelStyle}>{label}</label>
-    <input type={type} value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+      {Icon && (
+        <Icon
+          size={14}
+          strokeWidth={1.8}
+          style={{ position: 'absolute', left: 10, color: 'var(--text-muted)', pointerEvents: 'none' }}
+        />
+      )}
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ ...inputStyle, paddingLeft: Icon ? 32 : 12, paddingRight: suffix ? 30 : 12 }}
+      />
+      {suffix && (
+        <span
+          style={{
+            position: 'absolute',
+            right: 10,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 'var(--fw-medium)',
+            color: 'var(--text-muted)',
+            pointerEvents: 'none',
+          }}
+        >
+          {suffix}
+        </span>
+      )}
+    </div>
+  </div>
+);
+
+const SectionLabel = ({ icon: Icon, children }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+    {Icon && <Icon size={14} strokeWidth={2.2} color="var(--brand-primary)" />}
+    <span style={{ ...labelStyle, marginBottom: 0 }}>{children}</span>
   </div>
 );
 
@@ -50,8 +87,110 @@ const SaveStatus = ({ status }) => {
   return <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-xs)', color: s.color }}>{s.text}</span>;
 };
 
+const WEEK_DAYS = [
+  { id: 1, name: 'Lunes' },
+  { id: 2, name: 'Martes' },
+  { id: 3, name: 'Miércoles' },
+  { id: 4, name: 'Jueves' },
+  { id: 5, name: 'Viernes' },
+  { id: 6, name: 'Sábado' },
+  { id: 0, name: 'Domingo' },
+];
+
+const DEFAULT_HOURS = WEEK_DAYS.map((d) => ({
+  day_id: d.id,
+  day_name: d.name,
+  is_open: true,
+  open_time: '10:00',
+  close_time: d.id === 0 ? '15:00' : '19:00',
+}));
+
+const parseScheduleDays = (s) =>
+  new Set(
+    (s || '')
+      .split(',')
+      .map((d) => d.trim())
+      .filter(Boolean)
+  );
+const scheduleFromDays = (daySet) =>
+  WEEK_DAYS.filter((d) => daySet.has(d.name))
+    .map((d) => d.name)
+    .join(', ');
+
+const DAY_OPTIONS = [
+  { value: '', label: 'Sin definir' },
+  ...WEEK_DAYS.map((d) => ({ value: String(d.id), label: d.name })),
+];
+
+const dayName = (id) => WEEK_DAYS.find((d) => d.id === Number(id))?.name;
+
+// Walks the week starting at startDay until it reaches endDay, wrapping past
+// Sábado into Domingo — a "período de pago" doesn't have to sit inside a
+// Monday-Sunday week (e.g. Sábado a Martes).
+const rangeDays = (startDay, endDay) => {
+  if (startDay === '' || endDay === '' || startDay == null || endDay == null) return [];
+  const days = [];
+  let cur = Number(startDay);
+  const end = Number(endDay);
+  for (let i = 0; i < 7; i++) {
+    days.push(cur);
+    if (cur === end) break;
+    cur = (cur + 1) % 7;
+  }
+  return days;
+};
+
+const periodSummary = (startDay, endDay, payDay) => {
+  if (startDay === '' || endDay === '') return 'Aún no se ha definido su período de comisión.';
+  const range = `Su semana de comisión va de ${dayName(startDay)} a ${dayName(endDay)}`;
+  return payDay !== '' ? `${range}; se le paga el ${dayName(payDay)}.` : `${range}.`;
+};
+
+const CommissionWeekStrip = ({ startDay, endDay, payDay }) => {
+  const inRange = new Set(rangeDays(startDay, endDay));
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      {WEEK_DAYS.map((d) => {
+        const active = inRange.has(d.id);
+        const isPayDay = payDay !== '' && Number(payDay) === d.id;
+        return (
+          <div
+            key={d.id}
+            title={d.name}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
+              height: 40,
+              borderRadius: 'var(--radius-xs)',
+              background: active ? 'var(--brand-primary-soft)' : 'var(--surface-sunken)',
+              border: isPayDay ? '2px solid var(--brand-primary)' : '1px solid transparent',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--text-2xs)',
+                fontWeight: 'var(--fw-semibold)',
+                color: active ? 'var(--brand-primary)' : 'var(--text-muted)',
+              }}
+            >
+              {d.name.slice(0, 1)}
+            </span>
+            {isPayDay && <Wallet size={10} strokeWidth={2.4} color="var(--brand-primary)" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const TABS = [
   { value: 'negocio', label: 'Negocio' },
+  { value: 'personal', label: 'Personal' },
   { value: 'cuenta', label: 'Cuenta' },
   { value: 'preferencias', label: 'Preferencias' },
 ];
@@ -67,7 +206,7 @@ const Settings = () => {
     if (bpData) {
       setBp({
         name: bpData.name ?? '',
-        phone: bpData.phone ?? '',
+        phone: bpData.phone ?? '+52 ',
         email: bpData.email ?? '',
         website: bpData.website ?? '',
         address: bpData.address ?? '',
@@ -96,7 +235,7 @@ const Settings = () => {
         first_name: meData.first_name ?? '',
         last_name: meData.last_name ?? '',
         email: meData.email ?? '',
-        phone: meData.phone ?? '',
+        phone: meData.phone ?? '+52 ',
       });
     }
   }, [meData]);
@@ -117,6 +256,137 @@ const Settings = () => {
     ...p,
     fullName: [p.first_name, p.last_name].filter(Boolean).join(' ') || `Profesional ${p.id}`,
   }));
+
+  const { data: hoursData } = useApi(() => api.businessHours(), []);
+  const [hours, setHours] = useState(DEFAULT_HOURS);
+  const [hoursStatus, setHoursStatus] = useState(null);
+
+  useEffect(() => {
+    if (!hoursData || hoursData.length === 0) return;
+    const byId = Object.fromEntries(hoursData.map((r) => [r.day_id, r]));
+    setHours(
+      WEEK_DAYS.map((d) => {
+        const r = byId[d.id];
+        const fallback = DEFAULT_HOURS.find((h) => h.day_id === d.id);
+        return r
+          ? {
+              day_id: d.id,
+              day_name: d.name,
+              is_open: r.is_open,
+              open_time: r.open_time ? r.open_time.slice(0, 5) : fallback.open_time,
+              close_time: r.close_time ? r.close_time.slice(0, 5) : fallback.close_time,
+            }
+          : { ...fallback, is_open: false };
+      })
+    );
+  }, [hoursData]);
+
+  const setHourField = (dayId, field, value) => {
+    setHours((hs) => hs.map((h) => (h.day_id === dayId ? { ...h, [field]: value } : h)));
+  };
+
+  const saveHours = async () => {
+    setHoursStatus('saving');
+    try {
+      await api.updateBusinessHours(
+        hours.map((h) => ({
+          day_id: h.day_id,
+          day_name: h.day_name,
+          is_open: h.is_open,
+          open_time: h.is_open ? h.open_time : null,
+          close_time: h.is_open ? h.close_time : null,
+        }))
+      );
+      setHoursStatus('saved');
+      setTimeout(() => setHoursStatus(null), 3000);
+    } catch {
+      setHoursStatus('error');
+    }
+  };
+
+  const { data: staffProfilesData } = useApi(() => api.staffProfiles(), []);
+  const [staffProfiles, setStaffProfiles] = useState({});
+  const [staffProfileStatus, setStaffProfileStatus] = useState({});
+
+  useEffect(() => {
+    if (staffProfilesData) {
+      const next = {};
+      staffProfilesData.forEach((p) => {
+        next[p.professional_id] = {
+          birth_date: p.birth_date ?? '',
+          schedule: p.schedule ?? '',
+          commission_pct: p.commission_pct ?? '',
+          phone: p.phone ?? '+52 ',
+          email: p.email ?? '',
+          commission_period_start_day: p.commission_period_start_day ?? '',
+          commission_period_end_day: p.commission_period_end_day ?? '',
+          commission_pay_day: p.commission_pay_day ?? '',
+        };
+      });
+      setStaffProfiles(next);
+    }
+  }, [staffProfilesData]);
+
+  const setStaffProfileField = (professionalId, field, value) => {
+    setStaffProfiles((s) => ({ ...s, [professionalId]: { ...s[professionalId], [field]: value } }));
+  };
+
+  const toggleStaffScheduleDay = (professionalId, dayName) => {
+    setStaffProfiles((s) => {
+      const current = parseScheduleDays(s[professionalId]?.schedule);
+      if (current.has(dayName)) current.delete(dayName);
+      else current.add(dayName);
+      return { ...s, [professionalId]: { ...s[professionalId], schedule: scheduleFromDays(current) } };
+    });
+  };
+
+  const saveStaffProfile = async (professionalId) => {
+    setStaffProfileStatus((s) => ({ ...s, [professionalId]: 'saving' }));
+    try {
+      const p = staffProfiles[professionalId] ?? {};
+      await api.updateStaffProfile(professionalId, {
+        birth_date: p.birth_date || null,
+        schedule: p.schedule || null,
+        commission_pct: p.commission_pct === '' ? null : Number(p.commission_pct),
+        phone: p.phone || null,
+        email: p.email || null,
+        commission_period_start_day:
+          p.commission_period_start_day === '' ? null : Number(p.commission_period_start_day),
+        commission_period_end_day: p.commission_period_end_day === '' ? null : Number(p.commission_period_end_day),
+        commission_pay_day: p.commission_pay_day === '' ? null : Number(p.commission_pay_day),
+      });
+      setStaffProfileStatus((s) => ({ ...s, [professionalId]: 'saved' }));
+      setTimeout(() => setStaffProfileStatus((s) => ({ ...s, [professionalId]: null })), 3000);
+    } catch {
+      setStaffProfileStatus((s) => ({ ...s, [professionalId]: 'error' }));
+    }
+  };
+
+  const { data: sharedStaffData } = useApi(() => api.sharedStaffProfiles(), []);
+  const [sharedCommission, setSharedCommission] = useState({});
+  const [sharedStaffStatus, setSharedStaffStatus] = useState({});
+
+  useEffect(() => {
+    if (sharedStaffData) {
+      const next = {};
+      sharedStaffData.forEach((p) => {
+        next[p.name] = p.commission_pct ?? '';
+      });
+      setSharedCommission(next);
+    }
+  }, [sharedStaffData]);
+
+  const saveSharedStaff = async (name) => {
+    setSharedStaffStatus((s) => ({ ...s, [name]: 'saving' }));
+    try {
+      const value = sharedCommission[name];
+      await api.updateSharedStaffProfile(name, { commission_pct: value === '' ? null : Number(value) });
+      setSharedStaffStatus((s) => ({ ...s, [name]: 'saved' }));
+      setTimeout(() => setSharedStaffStatus((s) => ({ ...s, [name]: null })), 3000);
+    } catch {
+      setSharedStaffStatus((s) => ({ ...s, [name]: 'error' }));
+    }
+  };
 
   const [theme, setTheme] = useState(() => localStorage.getItem('zenya-theme') || 'light');
 
@@ -158,15 +428,15 @@ const Settings = () => {
 
           <Card eyebrow="Horario" title="Días y horas de servicio">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map((day, i) => (
+              {hours.map((h, i) => (
                 <div
-                  key={day}
+                  key={h.day_id}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '10px 0',
-                    borderBottom: i < 6 ? '1px solid var(--border-subtle)' : 'none',
+                    borderBottom: i < hours.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -178,25 +448,44 @@ const Settings = () => {
                         width: 80,
                       }}
                     >
-                      {day}
+                      {h.day_name}
                     </span>
-                    <Badge tone={i < 6 ? 'positive' : 'neutral'} dot={i < 6}>
-                      {i < 6 ? 'Abierto' : 'Cerrado'}
-                    </Badge>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={h.is_open}
+                        onChange={(e) => setHourField(h.day_id, 'is_open', e.target.checked)}
+                      />
+                      <Badge tone={h.is_open ? 'positive' : 'neutral'} dot={h.is_open}>
+                        {h.is_open ? 'Abierto' : 'Cerrado'}
+                      </Badge>
+                    </label>
                   </div>
-                  {i < 6 && (
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: 'var(--text-sm)',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      {i === 5 ? '10:00 – 18:00' : '9:00 – 19:00'}
-                    </span>
+                  {h.is_open && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="time"
+                        value={h.open_time}
+                        onChange={(e) => setHourField(h.day_id, 'open_time', e.target.value)}
+                        style={{ ...inputStyle, width: 120 }}
+                      />
+                      <span style={{ color: 'var(--text-muted)' }}>–</span>
+                      <input
+                        type="time"
+                        value={h.close_time}
+                        onChange={(e) => setHourField(h.day_id, 'close_time', e.target.value)}
+                        style={{ ...inputStyle, width: 120 }}
+                      />
+                    </div>
                   )}
                 </div>
               ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
+              <SaveStatus status={hoursStatus} />
+              <Button variant="primary" size="md" onClick={saveHours} disabled={hoursStatus === 'saving'}>
+                Guardar cambios
+              </Button>
             </div>
           </Card>
 
@@ -241,6 +530,276 @@ const Settings = () => {
                   <Badge tone="positive" dot>
                     Activa
                   </Badge>
+                </div>
+              ))
+            )}
+          </Card>
+        </div>
+      )}
+
+      {tab === 'personal' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Card
+            eyebrow="Colaboradoras"
+            title="Perfil de colaboradoras"
+            info="Datos, días de trabajo y período de pago de comisión de cada manicurista. Se guarda por separado para cada una."
+          >
+            {(staffProfilesData ?? []).length === 0 ? (
+              <div
+                style={{
+                  padding: '16px 0',
+                  textAlign: 'center',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-sm)',
+                }}
+              >
+                Cargando…
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {staffProfilesData.map((p, i) => {
+                  const local = staffProfiles[p.professional_id] ?? {};
+                  const fullName =
+                    [p.first_name, p.last_name].filter(Boolean).join(' ').trim() || `Profesional ${p.professional_id}`;
+                  const startDay = local.commission_period_start_day ?? '';
+                  const endDay = local.commission_period_end_day ?? '';
+                  const payDay = local.commission_pay_day ?? '';
+                  return (
+                    <div
+                      key={p.professional_id}
+                      style={{
+                        background: 'var(--surface-sunken)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: 18,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+                        <Avatar name={fullName} size="sm" tone={i === 0 ? 'rose' : i === 1 ? 'lavender' : 'ink'} />
+                        <div
+                          style={{
+                            fontFamily: 'var(--font-sans)',
+                            fontSize: 'var(--text-base)',
+                            fontWeight: 'var(--fw-semibold)',
+                            color: 'var(--text-heading)',
+                          }}
+                        >
+                          {fullName}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 18 }}>
+                        <Field
+                          label="Fecha de nacimiento"
+                          type="date"
+                          icon={Cake}
+                          value={local.birth_date}
+                          onChange={(v) => setStaffProfileField(p.professional_id, 'birth_date', v)}
+                        />
+                        <Field
+                          label="Teléfono"
+                          type="tel"
+                          icon={Phone}
+                          value={local.phone}
+                          onChange={(v) => setStaffProfileField(p.professional_id, 'phone', v)}
+                        />
+                        <Field
+                          label="Correo"
+                          type="email"
+                          icon={Mail}
+                          value={local.email}
+                          onChange={(v) => setStaffProfileField(p.professional_id, 'email', v)}
+                        />
+                      </div>
+
+                      <div style={{ marginBottom: 18 }}>
+                        <SectionLabel icon={Clock}>Días que trabaja</SectionLabel>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {WEEK_DAYS.map((d) => {
+                            const active = parseScheduleDays(local.schedule).has(d.name);
+                            return (
+                              <button
+                                key={d.id}
+                                type="button"
+                                onClick={() => toggleStaffScheduleDay(p.professional_id, d.name)}
+                                style={{
+                                  padding: '6px 14px',
+                                  borderRadius: 'var(--radius-pill)',
+                                  fontFamily: 'var(--font-sans)',
+                                  fontSize: 'var(--text-xs)',
+                                  fontWeight: 'var(--fw-medium)',
+                                  cursor: 'pointer',
+                                  border: active ? '1px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                                  background: active ? 'var(--brand-primary-soft)' : 'var(--surface-card)',
+                                  color: active ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                                }}
+                              >
+                                {d.name.slice(0, 3)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          background: 'var(--surface-blush)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: 16,
+                        }}
+                      >
+                        <SectionLabel icon={Wallet}>Comisión</SectionLabel>
+                        <div
+                          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16, marginBottom: 14 }}
+                        >
+                          <Field
+                            label="Porcentaje"
+                            type="number"
+                            suffix="%"
+                            value={local.commission_pct}
+                            onChange={(v) => setStaffProfileField(p.professional_id, 'commission_pct', v)}
+                          />
+                          <Select
+                            label="SEMANA: DE"
+                            icon={Calendar}
+                            value={String(startDay)}
+                            onChange={(v) => setStaffProfileField(p.professional_id, 'commission_period_start_day', v)}
+                            options={DAY_OPTIONS}
+                          />
+                          <Select
+                            label="A"
+                            icon={Calendar}
+                            value={String(endDay)}
+                            onChange={(v) => setStaffProfileField(p.professional_id, 'commission_period_end_day', v)}
+                            options={DAY_OPTIONS}
+                          />
+                          <Select
+                            label="DÍA DE PAGO"
+                            icon={Wallet}
+                            value={String(payDay)}
+                            onChange={(v) => setStaffProfileField(p.professional_id, 'commission_pay_day', v)}
+                            options={DAY_OPTIONS}
+                          />
+                        </div>
+                        <CommissionWeekStrip startDay={startDay} endDay={endDay} payDay={payDay} />
+                        <p
+                          style={{
+                            fontFamily: 'var(--font-sans)',
+                            fontSize: 'var(--text-xs)',
+                            color: 'var(--text-secondary)',
+                            margin: '10px 0 0',
+                          }}
+                        >
+                          {periodSummary(startDay, endDay, payDay)}
+                        </p>
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-end',
+                          gap: 12,
+                          marginTop: 16,
+                        }}
+                      >
+                        <SaveStatus status={staffProfileStatus[p.professional_id]} />
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => saveStaffProfile(p.professional_id)}
+                          disabled={staffProfileStatus[p.professional_id] === 'saving'}
+                        >
+                          Guardar
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
+          <Card
+            eyebrow="Lashes y Cejas · Cosmetología"
+            title="Comisión por colaboradora"
+            info="Comparten una cuenta de AgendaPro, así que solo se les puede configurar la comisión — no tienen perfil individual."
+          >
+            {(sharedStaffData ?? []).length === 0 ? (
+              <div
+                style={{
+                  padding: '16px 0',
+                  textAlign: 'center',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-sm)',
+                }}
+              >
+                Cargando…
+              </div>
+            ) : (
+              sharedStaffData.map((p, i) => (
+                <div
+                  key={p.name}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 0',
+                    borderBottom: i < sharedStaffData.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                  }}
+                >
+                  <Avatar name={p.name} size="sm" tone={p.category === 'Lashes y Cejas' ? 'lavender' : 'rose'} />
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 'var(--fw-medium)',
+                        color: 'var(--text-heading)',
+                      }}
+                    >
+                      {p.name}
+                    </div>
+                    <Badge tone={p.category === 'Lashes y Cejas' ? 'lavender' : 'rose'} size="sm">
+                      {p.category}
+                    </Badge>
+                  </div>
+                  <div style={{ width: 110 }}>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        value={sharedCommission[p.name] ?? ''}
+                        onChange={(e) => setSharedCommission((v) => ({ ...v, [p.name]: e.target.value }))}
+                        placeholder="0"
+                        style={{ ...inputStyle, paddingRight: 26 }}
+                      />
+                      <span
+                        style={{
+                          position: 'absolute',
+                          right: 10,
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 'var(--text-xs)',
+                          fontWeight: 'var(--fw-medium)',
+                          color: 'var(--text-muted)',
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        %
+                      </span>
+                    </div>
+                  </div>
+                  <SaveStatus status={sharedStaffStatus[p.name]} />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => saveSharedStaff(p.name)}
+                    disabled={sharedStaffStatus[p.name] === 'saving'}
+                  >
+                    Guardar
+                  </Button>
                 </div>
               ))
             )}
