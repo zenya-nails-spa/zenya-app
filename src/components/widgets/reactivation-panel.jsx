@@ -88,7 +88,7 @@ function campaignCell(send) {
   return (
     <span title={`Enviado el ${fmtDate(send.sent_at)}`}>
       <Badge tone="lavender" size="sm" dot>
-        Contactada · {templateLabel}
+        {templateLabel}
       </Badge>
     </span>
   );
