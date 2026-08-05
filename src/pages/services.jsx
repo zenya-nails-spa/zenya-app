@@ -29,12 +29,20 @@ const CROSSSELL_COLUMNS = [
   { key: 'tag', label: 'Oportunidad', align: 'right' },
 ];
 
+const PRODUCT_COLUMNS = [
+  { key: 'name', label: 'Producto' },
+  { key: 'quantity', label: 'Vendidos', align: 'right' },
+  { key: 'avg', label: 'Precio prom.', align: 'right' },
+  { key: 'revenue', label: 'Ingresos', align: 'right' },
+];
+
 const Services = ({ dateRange }) => {
   const deps = [dateRange.from_date, dateRange.to_date];
   const { data: rawTopServices } = useApi(() => api.topServices({ ...dateRange, limit: 20 }), deps);
   const { data: categoriesData } = useApi(() => api.serviceCategories(dateRange), deps);
   const { data: crossSellData } = useApi(() => api.crossSell(dateRange), deps);
   const { data: repeatData } = useApi(() => api.serviceRepeatRate(dateRange), deps);
+  const { data: rawTopProducts } = useApi(() => api.topProducts({ ...dateRange, limit: 20 }), deps);
 
   const services = useMemo(
     () =>
@@ -80,6 +88,9 @@ const Services = ({ dateRange }) => {
   const catTotal = categories.reduce((s, c) => s + (c.revenue ?? 0), 0);
 
   const crossSell = crossSellData ?? [];
+
+  const products = rawTopProducts ?? [];
+  const maxProductQty = products.length ? Math.max(...products.map((p) => p.quantity)) : 1;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -270,6 +281,45 @@ const Services = ({ dateRange }) => {
             }}
           />
         </Card>
+      )}
+
+      {/* Products sold */}
+      {products.length > 0 && (
+        <div className="z-2col">
+          <Card eyebrow="Productos" title="Ranking por unidades vendidas">
+            {products
+              .slice()
+              .sort((a, b) => b.quantity - a.quantity)
+              .slice(0, 6)
+              .map((p, i) => (
+                <RankRow
+                  key={p.name}
+                  rank={i + 1}
+                  label={p.name}
+                  sublabel={`${money(p.avg)} c/u`}
+                  value={`${p.quantity} vendidos`}
+                  ratio={p.quantity / maxProductQty}
+                  color={CHART[i % CHART.length]}
+                  last={i === Math.min(5, products.length - 1)}
+                />
+              ))}
+          </Card>
+
+          <Card eyebrow="Productos" title="Todos los productos vendidos">
+            <DataTable
+              columns={PRODUCT_COLUMNS}
+              rows={products}
+              renderCell={(row, key) => {
+                if (key === 'name')
+                  return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.name}</span>;
+                if (key === 'quantity') return row.quantity;
+                if (key === 'avg') return money(row.avg);
+                if (key === 'revenue') return money(row.revenue);
+                return row[key];
+              }}
+            />
+          </Card>
+        </div>
       )}
 
       {/* Full catalogue with repeat rate */}
