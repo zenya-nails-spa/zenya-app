@@ -363,28 +363,60 @@ const Settings = () => {
   };
 
   const { data: sharedStaffData } = useApi(() => api.sharedStaffProfiles(), []);
-  const [sharedCommission, setSharedCommission] = useState({});
+  const [sharedStaff, setSharedStaff] = useState({});
   const [sharedStaffStatus, setSharedStaffStatus] = useState({});
 
   useEffect(() => {
     if (sharedStaffData) {
       const next = {};
       sharedStaffData.forEach((p) => {
-        next[p.name] = p.commission_pct ?? '';
+        next[p.name] = { commission_pct: p.commission_pct ?? '', birth_date: p.birth_date ?? '' };
       });
-      setSharedCommission(next);
+      setSharedStaff(next);
     }
   }, [sharedStaffData]);
+
+  const setSharedStaffField = (name, field, value) => {
+    setSharedStaff((s) => ({ ...s, [name]: { ...s[name], [field]: value } }));
+  };
 
   const saveSharedStaff = async (name) => {
     setSharedStaffStatus((s) => ({ ...s, [name]: 'saving' }));
     try {
-      const value = sharedCommission[name];
-      await api.updateSharedStaffProfile(name, { commission_pct: value === '' ? null : Number(value) });
+      const p = sharedStaff[name] ?? {};
+      await api.updateSharedStaffProfile(name, {
+        commission_pct: p.commission_pct === '' ? null : Number(p.commission_pct),
+        birth_date: p.birth_date || null,
+      });
       setSharedStaffStatus((s) => ({ ...s, [name]: 'saved' }));
       setTimeout(() => setSharedStaffStatus((s) => ({ ...s, [name]: null })), 3000);
     } catch {
       setSharedStaffStatus((s) => ({ ...s, [name]: 'error' }));
+    }
+  };
+
+  const { data: receptionStaffData } = useApi(() => api.receptionStaffProfiles(), []);
+  const [receptionStaff, setReceptionStaff] = useState({});
+  const [receptionStaffStatus, setReceptionStaffStatus] = useState({});
+
+  useEffect(() => {
+    if (receptionStaffData) {
+      const next = {};
+      receptionStaffData.forEach((p) => {
+        next[p.name] = p.birth_date ?? '';
+      });
+      setReceptionStaff(next);
+    }
+  }, [receptionStaffData]);
+
+  const saveReceptionStaff = async (name) => {
+    setReceptionStaffStatus((s) => ({ ...s, [name]: 'saving' }));
+    try {
+      await api.updateReceptionStaffProfile(name, { birth_date: receptionStaff[name] || null });
+      setReceptionStaffStatus((s) => ({ ...s, [name]: 'saved' }));
+      setTimeout(() => setReceptionStaffStatus((s) => ({ ...s, [name]: null })), 3000);
+    } catch {
+      setReceptionStaffStatus((s) => ({ ...s, [name]: 'error' }));
     }
   };
 
@@ -725,7 +757,7 @@ const Settings = () => {
           <Card
             eyebrow="Lashes y Cejas · Cosmetología"
             title="Comisión por colaboradora"
-            info="Comparten una cuenta de AgendaPro, así que solo se les puede configurar la comisión — no tienen perfil individual."
+            info="Comparten una cuenta de AgendaPro, así que solo se les puede configurar comisión y fecha de nacimiento — no tienen perfil completo."
           >
             {(sharedStaffData ?? []).length === 0 ? (
               <div
@@ -745,14 +777,93 @@ const Settings = () => {
                   key={p.name}
                   style={{
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: 'flex-end',
                     gap: 12,
                     padding: '12px 0',
                     borderBottom: i < sharedStaffData.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                   }}
                 >
-                  <Avatar name={p.name} size="sm" tone={p.category === 'Lashes y Cejas' ? 'lavender' : 'rose'} />
-                  <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, height: 38 }}>
+                    <Avatar name={p.name} size="sm" tone={p.category === 'Lashes y Cejas' ? 'lavender' : 'rose'} />
+                    <div>
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 'var(--text-sm)',
+                          fontWeight: 'var(--fw-medium)',
+                          color: 'var(--text-heading)',
+                        }}
+                      >
+                        {p.name}
+                      </div>
+                      <Badge tone={p.category === 'Lashes y Cejas' ? 'lavender' : 'rose'} size="sm">
+                        {p.category}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div style={{ width: 170 }}>
+                    <Field
+                      label="Fecha de nacimiento"
+                      type="date"
+                      icon={Cake}
+                      value={sharedStaff[p.name]?.birth_date ?? ''}
+                      onChange={(v) => setSharedStaffField(p.name, 'birth_date', v)}
+                    />
+                  </div>
+                  <div style={{ width: 110 }}>
+                    <Field
+                      label="Comisión"
+                      type="number"
+                      suffix="%"
+                      value={sharedStaff[p.name]?.commission_pct ?? ''}
+                      onChange={(v) => setSharedStaffField(p.name, 'commission_pct', v)}
+                    />
+                  </div>
+                  <SaveStatus status={sharedStaffStatus[p.name]} />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => saveSharedStaff(p.name)}
+                    disabled={sharedStaffStatus[p.name] === 'saving'}
+                  >
+                    Guardar
+                  </Button>
+                </div>
+              ))
+            )}
+          </Card>
+
+          <Card
+            eyebrow="Recepción"
+            title="Fecha de nacimiento"
+            info="No genera comisión — solo se le puede configurar la fecha de nacimiento."
+          >
+            {(receptionStaffData ?? []).length === 0 ? (
+              <div
+                style={{
+                  padding: '16px 0',
+                  textAlign: 'center',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-sm)',
+                }}
+              >
+                Cargando…
+              </div>
+            ) : (
+              receptionStaffData.map((p, i) => (
+                <div
+                  key={p.name}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    gap: 12,
+                    padding: '12px 0',
+                    borderBottom: i < receptionStaffData.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, height: 38 }}>
+                    <Avatar name={p.name} size="sm" tone="ink" />
                     <div
                       style={{
                         fontFamily: 'var(--font-sans)',
@@ -763,40 +874,22 @@ const Settings = () => {
                     >
                       {p.name}
                     </div>
-                    <Badge tone={p.category === 'Lashes y Cejas' ? 'lavender' : 'rose'} size="sm">
-                      {p.category}
-                    </Badge>
                   </div>
-                  <div style={{ width: 110 }}>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <input
-                        type="number"
-                        value={sharedCommission[p.name] ?? ''}
-                        onChange={(e) => setSharedCommission((v) => ({ ...v, [p.name]: e.target.value }))}
-                        placeholder="0"
-                        style={{ ...inputStyle, paddingRight: 26 }}
-                      />
-                      <span
-                        style={{
-                          position: 'absolute',
-                          right: 10,
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 'var(--text-xs)',
-                          fontWeight: 'var(--fw-medium)',
-                          color: 'var(--text-muted)',
-                          pointerEvents: 'none',
-                        }}
-                      >
-                        %
-                      </span>
-                    </div>
+                  <div style={{ width: 170 }}>
+                    <Field
+                      label="Fecha de nacimiento"
+                      type="date"
+                      icon={Cake}
+                      value={receptionStaff[p.name] ?? ''}
+                      onChange={(v) => setReceptionStaff((s) => ({ ...s, [p.name]: v }))}
+                    />
                   </div>
-                  <SaveStatus status={sharedStaffStatus[p.name]} />
+                  <SaveStatus status={receptionStaffStatus[p.name]} />
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => saveSharedStaff(p.name)}
-                    disabled={sharedStaffStatus[p.name] === 'saving'}
+                    onClick={() => saveReceptionStaff(p.name)}
+                    disabled={receptionStaffStatus[p.name] === 'saving'}
                   >
                     Guardar
                   </Button>

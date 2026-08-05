@@ -86,6 +86,8 @@ export const api = {
   updateStaffProfile: (professionalId, body) => put(`/staff-profiles/professionals/${professionalId}`, body),
   sharedStaffProfiles: () => get('/staff-profiles/shared'),
   updateSharedStaffProfile: (name, body) => put(`/staff-profiles/shared/${encodeURIComponent(name)}`, body),
+  receptionStaffProfiles: () => get('/staff-profiles/reception'),
+  updateReceptionStaffProfile: (name, body) => put(`/staff-profiles/reception/${encodeURIComponent(name)}`, body),
   products: () => get('/products'),
   paymentMethods: () => get('/payment-methods'),
 
