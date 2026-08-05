@@ -321,6 +321,7 @@ const Settings = () => {
           commission_period_start_day: p.commission_period_start_day ?? '',
           commission_period_end_day: p.commission_period_end_day ?? '',
           commission_pay_day: p.commission_pay_day ?? '',
+          commission_min_guarantee: p.commission_min_guarantee ?? '',
         };
       });
       setStaffProfiles(next);
@@ -354,6 +355,7 @@ const Settings = () => {
           p.commission_period_start_day === '' ? null : Number(p.commission_period_start_day),
         commission_period_end_day: p.commission_period_end_day === '' ? null : Number(p.commission_period_end_day),
         commission_pay_day: p.commission_pay_day === '' ? null : Number(p.commission_pay_day),
+        commission_min_guarantee: p.commission_min_guarantee === '' ? null : Number(p.commission_min_guarantee),
       });
       setStaffProfileStatus((s) => ({ ...s, [professionalId]: 'saved' }));
       setTimeout(() => setStaffProfileStatus((s) => ({ ...s, [professionalId]: null })), 3000);
@@ -683,9 +685,7 @@ const Settings = () => {
                         }}
                       >
                         <SectionLabel icon={Wallet}>Comisión</SectionLabel>
-                        <div
-                          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16, marginBottom: 14 }}
-                        >
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                           <Field
                             label="Porcentaje"
                             type="number"
@@ -693,6 +693,15 @@ const Settings = () => {
                             value={local.commission_pct}
                             onChange={(v) => setStaffProfileField(p.professional_id, 'commission_pct', v)}
                           />
+                          <Field
+                            label="Mínimo garantizado"
+                            type="number"
+                            suffix="$"
+                            value={local.commission_min_guarantee}
+                            onChange={(v) => setStaffProfileField(p.professional_id, 'commission_min_guarantee', v)}
+                          />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 14 }}>
                           <Select
                             label="SEMANA: DE"
                             icon={Calendar}
@@ -716,6 +725,19 @@ const Settings = () => {
                           />
                         </div>
                         <CommissionWeekStrip startDay={startDay} endDay={endDay} payDay={payDay} />
+                        {local.commission_min_guarantee !== '' && (
+                          <p
+                            style={{
+                              fontFamily: 'var(--font-sans)',
+                              fontSize: 'var(--text-xs)',
+                              color: 'var(--text-secondary)',
+                              margin: '10px 0 0',
+                            }}
+                          >
+                            Se le paga lo que sea mayor entre su comisión y $
+                            {Number(local.commission_min_guarantee).toLocaleString('es-MX')}.
+                          </p>
+                        )}
                         <p
                           style={{
                             fontFamily: 'var(--font-sans)',
