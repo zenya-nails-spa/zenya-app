@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApi } from '../hooks/use-api';
@@ -31,6 +31,7 @@ const FUENTE_TONE = {
 
 const EGRESOS_COLS = [
   { key: 'semana', label: 'Semana' },
+  { key: 'fecha_pago', label: 'Fecha de pago', sortable: true, sortValue: (r) => r.fecha_pago || '' },
   { key: 'concepto', label: 'Concepto' },
   { key: 'tipo_gasto', label: 'Tipo' },
   { key: 'colaborador', label: 'Colaborador' },
@@ -222,6 +223,7 @@ const Gastos = () => {
   const { data: mayoreo } = useApi(() => api.mayoreoGastos(), [refreshKey]);
   const { data: revenueGoal } = useApi(() => api.revenueGoal({ month: `${month}-01` }), [month, refreshKey]);
   const { data: anomalies } = useApi(() => api.commissionAnomalies({ month: `${month}-01` }), [month, refreshKey]);
+  const [expandedAnomalyKey, setExpandedAnomalyKey] = useState(null);
 
   const [goalInput, setGoalInput] = useState('');
   const [savingGoal, setSavingGoal] = useState(false);
@@ -290,6 +292,7 @@ const Gastos = () => {
     return money(row[key]);
   };
 
+  const anomalyRowKey = (r) => `${r.colaborador}-${r.window_from}-${r.egreso_id ?? 'missing'}`;
   const anomalyRows = anomalies?.rows ?? [];
   const sortedAnomalyRows = [...anomalyRows].sort((a, b) =>
     a.status === b.status ? 0 : a.status === 'anomaly' ? -1 : 1
@@ -675,62 +678,162 @@ const Gastos = () => {
               <tbody>
                 {sortedAnomalyRows.map((r, i) => {
                   const borderBottom = i < sortedAnomalyRows.length - 1 ? '1px solid var(--border-subtle)' : 'none';
+                  const rowKey = anomalyRowKey(r);
+                  const isMissing = r.egreso_id == null;
+                  const isExpanded = expandedAnomalyKey === rowKey;
                   return (
-                    <tr key={r.egreso_id} className="z-row">
-                      <td style={{ padding: '12px', borderBottom, fontWeight: 600, color: 'var(--text-heading)' }}>
-                        {r.colaborador}
-                      </td>
-                      <td style={{ textAlign: 'right', padding: '12px', borderBottom, whiteSpace: 'nowrap' }}>
-                        {r.fecha_pago ? (
-                          fmtFechaPago(r.fecha_pago)
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>
-                            {r.semana ? `${r.semana} (sin fecha)` : 'Sin fecha'}
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px', borderBottom, color: 'var(--text-secondary)' }}>{r.concepto}</td>
-                      <td style={{ textAlign: 'right', padding: '12px', borderBottom }}>{money(r.generated)}</td>
-                      <td style={{ textAlign: 'right', padding: '12px', borderBottom, fontWeight: 600 }}>
-                        {money(r.expected)}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: 'right',
-                          padding: '12px',
-                          borderBottom,
-                          fontWeight: 600,
-                          color: r.status === 'anomaly' ? 'var(--negative)' : 'var(--text-display)',
-                        }}
+                    <Fragment key={rowKey}>
+                      <tr
+                        className="z-row"
+                        onClick={() => r.status === 'anomaly' && setExpandedAnomalyKey(isExpanded ? null : rowKey)}
+                        style={{ cursor: r.status === 'anomaly' ? 'pointer' : 'default' }}
                       >
-                        {money(r.actual)}
-                      </td>
-                      <td style={{ textAlign: 'right', padding: '12px', borderBottom }}>
-                        <Badge tone={r.status === 'anomaly' ? 'negative' : 'positive'} size="sm" dot>
-                          {r.status === 'anomaly' ? 'Anomalía' : 'Correcto'}
-                        </Badge>
-                        {r.issues.length > 0 && (
-                          <div
-                            style={{
-                              marginTop: 4,
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: 2,
-                              alignItems: 'flex-end',
-                            }}
-                          >
-                            {r.issues.map((issue, ix) => (
-                              <span
-                                key={ix}
-                                style={{ fontSize: 'var(--text-xs)', color: 'var(--negative)', textAlign: 'right' }}
+                        <td style={{ padding: '12px', borderBottom, fontWeight: 600, color: 'var(--text-heading)' }}>
+                          {r.colaborador}
+                        </td>
+                        <td style={{ textAlign: 'right', padding: '12px', borderBottom, whiteSpace: 'nowrap' }}>
+                          {r.fecha_pago ? (
+                            fmtFechaPago(r.fecha_pago)
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>
+                              {isMissing ? '—' : r.semana ? `${r.semana} (sin fecha)` : 'Sin fecha'}
+                            </span>
+                          )}
+                        </td>
+                        <td
+                          style={{
+                            padding: '12px',
+                            borderBottom,
+                            color: isMissing ? 'var(--text-muted)' : 'var(--text-secondary)',
+                            fontStyle: isMissing ? 'italic' : 'normal',
+                          }}
+                        >
+                          {r.concepto}
+                        </td>
+                        <td style={{ textAlign: 'right', padding: '12px', borderBottom }}>{money(r.generated)}</td>
+                        <td style={{ textAlign: 'right', padding: '12px', borderBottom, fontWeight: 600 }}>
+                          {money(r.expected)}
+                        </td>
+                        <td
+                          style={{
+                            textAlign: 'right',
+                            padding: '12px',
+                            borderBottom,
+                            fontWeight: 600,
+                            color: r.status === 'anomaly' ? 'var(--negative)' : 'var(--text-display)',
+                          }}
+                        >
+                          {money(r.actual)}
+                        </td>
+                        <td style={{ textAlign: 'right', padding: '12px', borderBottom }}>
+                          <Badge tone={r.status === 'anomaly' ? 'negative' : 'positive'} size="sm" dot>
+                            {r.status === 'anomaly' ? 'Anomalía' : 'Correcto'}
+                          </Badge>
+                          {r.issues.length > 0 && (
+                            <div
+                              style={{
+                                marginTop: 4,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 2,
+                                alignItems: 'flex-end',
+                              }}
+                            >
+                              {r.issues.map((issue, ix) => (
+                                <span
+                                  key={ix}
+                                  style={{ fontSize: 'var(--text-xs)', color: 'var(--negative)', textAlign: 'right' }}
+                                >
+                                  {issue}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {r.status === 'anomaly' && (
+                            <div
+                              style={{
+                                marginTop: 4,
+                                fontSize: 'var(--text-xs)',
+                                color: 'var(--text-brand)',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {isExpanded ? 'Ocultar detalle ▲' : 'Ver detalle ▼'}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr key={`${rowKey}-detail`}>
+                          <td colSpan={7} style={{ padding: 0, borderBottom, background: 'var(--surface-sunken)' }}>
+                            <div style={{ padding: '14px 16px' }}>
+                              <div
+                                style={{
+                                  fontSize: 'var(--text-xs)',
+                                  color: 'var(--text-secondary)',
+                                  marginBottom: 10,
+                                }}
                               >
-                                {issue}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
+                                Período considerado:{' '}
+                                <strong style={{ color: 'var(--text-heading)' }}>
+                                  {r.window_from} a {r.window_to}
+                                </strong>{' '}
+                                (ambos días incluidos)
+                              </div>
+                              {r.services.length === 0 ? (
+                                <div
+                                  style={{
+                                    fontSize: 'var(--text-xs)',
+                                    color: 'var(--text-muted)',
+                                    fontStyle: 'italic',
+                                  }}
+                                >
+                                  No hay servicios registrados para esta colaboradora en este período.
+                                </div>
+                              ) : (
+                                <table
+                                  style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-xs)' }}
+                                >
+                                  <thead>
+                                    <tr>
+                                      {['Fecha', 'Hora', 'Servicio', 'Monto'].map((label, li) => (
+                                        <th
+                                          key={label}
+                                          style={{
+                                            textAlign: li === 3 ? 'right' : 'left',
+                                            padding: '4px 10px',
+                                            color: 'var(--text-muted)',
+                                            fontWeight: 'var(--fw-semibold)',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: 'var(--ls-label)',
+                                          }}
+                                        >
+                                          {label}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {r.services.map((s, si) => (
+                                      <tr key={si}>
+                                        <td style={{ padding: '4px 10px', color: 'var(--text-body)' }}>{s.date}</td>
+                                        <td style={{ padding: '4px 10px', color: 'var(--text-body)' }}>
+                                          {s.time.slice(0, 5)}
+                                        </td>
+                                        <td style={{ padding: '4px 10px', color: 'var(--text-body)' }}>{s.name}</td>
+                                        <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: 600 }}>
+                                          {money(s.amount)}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -920,6 +1023,12 @@ const Gastos = () => {
             rows={data.egresos}
             renderCell={(row, key) => {
               if (key === 'semana') return <span style={{ color: 'var(--text-secondary)' }}>{row.semana ?? '—'}</span>;
+              if (key === 'fecha_pago')
+                return row.fecha_pago ? (
+                  fmtFechaPago(row.fecha_pago)
+                ) : (
+                  <span style={{ color: 'var(--text-muted)' }}>—</span>
+                );
               if (key === 'concepto')
                 return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.concepto}</span>;
               if (key === 'tipo_gasto')
