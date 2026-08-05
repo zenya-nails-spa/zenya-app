@@ -44,6 +44,7 @@ export const api = {
   topProducts: (params) => get('/analytics/top-products', params),
   staffPerformance: (params) => get('/analytics/staff-performance', params),
   staffRendimiento: (params) => get('/analytics/staff-rendimiento', params),
+  commissionAnomalies: (params) => get('/analytics/commission-anomalies', params),
   paymentMethodsBreakdown: (params) => get('/analytics/payment-methods-breakdown', params),
   clientRetention: (params) => get('/analytics/client-retention', params),
   clientStats: (params) => get('/analytics/client-stats', params),

@@ -14,6 +14,13 @@ import Badge from '../components/ui/badge';
 const money = (v) => '$' + Math.round(v ?? 0).toLocaleString('es-MX');
 const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
+const WEEKDAY_ES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const fmtFechaPago = (iso) => {
+  if (!iso) return null;
+  const d = new Date(`${iso}T00:00:00`);
+  return `${WEEKDAY_ES[d.getDay()]} ${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+};
+
 const FUENTE_TONE = {
   Debito: 'lavender',
   Credito: 'rose',
@@ -214,6 +221,7 @@ const Gastos = () => {
   const { data: cierre } = useApi(() => api.cierreSemanal({ month: `${month}-01` }), [month, refreshKey]);
   const { data: mayoreo } = useApi(() => api.mayoreoGastos(), [refreshKey]);
   const { data: revenueGoal } = useApi(() => api.revenueGoal({ month: `${month}-01` }), [month, refreshKey]);
+  const { data: anomalies } = useApi(() => api.commissionAnomalies({ month: `${month}-01` }), [month, refreshKey]);
 
   const [goalInput, setGoalInput] = useState('');
   const [savingGoal, setSavingGoal] = useState(false);
@@ -281,6 +289,12 @@ const Gastos = () => {
       return <span style={{ fontWeight: 700, color: 'var(--text-display)' }}>{money(row[key])}</span>;
     return money(row[key]);
   };
+
+  const anomalyRows = anomalies?.rows ?? [];
+  const sortedAnomalyRows = [...anomalyRows].sort((a, b) =>
+    a.status === b.status ? 0 : a.status === 'anomaly' ? -1 : 1
+  );
+  const anomalyCount = anomalyRows.filter((r) => r.status === 'anomaly').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -580,6 +594,147 @@ const Gastos = () => {
             }}
           >
             Establece un objetivo semanal para ver el seguimiento de cada semana.
+          </div>
+        )}
+      </Card>
+
+      <Card
+        eyebrow="Comisiones"
+        title="Anomalías de pago de comisión"
+        info="Compara cada pago de comisión contra lo que debería ser según el % (y el mínimo garantizado, si aplica) configurado para el período de esa colaboradora en Ajustes → Personal."
+        action={
+          anomalyRows.length > 0 && (
+            <Badge tone={anomalyCount > 0 ? 'negative' : 'positive'} size="sm" dot>
+              {anomalyCount > 0 ? `${anomalyCount} anomalía${anomalyCount === 1 ? '' : 's'}` : 'Todo cuadra'}
+            </Badge>
+          )
+        }
+      >
+        {(anomalies?.config_warnings ?? []).length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {anomalies.config_warnings.map((w) => (
+              <Badge key={w.colaborador} tone="caution" size="sm">
+                {w.colaborador}: {w.reason}
+              </Badge>
+            ))}
+          </div>
+        )}
+        {sortedAnomalyRows.length === 0 ? (
+          <div
+            style={{
+              padding: '20px 0',
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            No hay pagos de comisión que revisar este mes.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--text-sm)',
+              }}
+            >
+              <thead>
+                <tr>
+                  {[
+                    'Colaboradora',
+                    'Fecha de pago',
+                    'Concepto',
+                    'Generado en su período',
+                    'Esperado',
+                    'Pagado',
+                    'Estado',
+                  ].map((label, i) => (
+                    <th
+                      key={label}
+                      style={{
+                        textAlign: i === 0 || i === 2 ? 'left' : 'right',
+                        padding: '8px 12px',
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 'var(--fw-semibold)',
+                        letterSpacing: 'var(--ls-label)',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-muted)',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        background: 'var(--surface-sunken)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedAnomalyRows.map((r, i) => {
+                  const borderBottom = i < sortedAnomalyRows.length - 1 ? '1px solid var(--border-subtle)' : 'none';
+                  return (
+                    <tr key={r.egreso_id} className="z-row">
+                      <td style={{ padding: '12px', borderBottom, fontWeight: 600, color: 'var(--text-heading)' }}>
+                        {r.colaborador}
+                      </td>
+                      <td style={{ textAlign: 'right', padding: '12px', borderBottom, whiteSpace: 'nowrap' }}>
+                        {r.fecha_pago ? (
+                          fmtFechaPago(r.fecha_pago)
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            {r.semana ? `${r.semana} (sin fecha)` : 'Sin fecha'}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px', borderBottom, color: 'var(--text-secondary)' }}>{r.concepto}</td>
+                      <td style={{ textAlign: 'right', padding: '12px', borderBottom }}>{money(r.generated)}</td>
+                      <td style={{ textAlign: 'right', padding: '12px', borderBottom, fontWeight: 600 }}>
+                        {money(r.expected)}
+                      </td>
+                      <td
+                        style={{
+                          textAlign: 'right',
+                          padding: '12px',
+                          borderBottom,
+                          fontWeight: 600,
+                          color: r.status === 'anomaly' ? 'var(--negative)' : 'var(--text-display)',
+                        }}
+                      >
+                        {money(r.actual)}
+                      </td>
+                      <td style={{ textAlign: 'right', padding: '12px', borderBottom }}>
+                        <Badge tone={r.status === 'anomaly' ? 'negative' : 'positive'} size="sm" dot>
+                          {r.status === 'anomaly' ? 'Anomalía' : 'Correcto'}
+                        </Badge>
+                        {r.issues.length > 0 && (
+                          <div
+                            style={{
+                              marginTop: 4,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 2,
+                              alignItems: 'flex-end',
+                            }}
+                          >
+                            {r.issues.map((issue, ix) => (
+                              <span
+                                key={ix}
+                                style={{ fontSize: 'var(--text-xs)', color: 'var(--negative)', textAlign: 'right' }}
+                              >
+                                {issue}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>
