@@ -35,6 +35,13 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function daysSince(iso) {
+  if (!iso) return null;
+  const sent = new Date(iso);
+  const ms = Date.now() - sent.getTime();
+  return Math.max(0, Math.floor(ms / 86400000));
+}
+
 function estadoBadge(status) {
   if (status === 'active')
     return (
@@ -177,6 +184,19 @@ const CANDIDATE_COLS = [
   },
   { key: 'estado', label: 'Estado', sortable: true, sortValue: (r) => ESTADO_RANK[r.churn_status] ?? 3 },
   { key: 'campana', label: 'Campaña', sortable: true, sortValue: (r) => campaignRank(r.latestSend) },
+  {
+    key: 'enviado',
+    label: 'Enviado',
+    sortable: true,
+    sortValue: (r) => (r.latestSend?.sent_at ? new Date(r.latestSend.sent_at).getTime() : -1),
+  },
+  {
+    key: 'dias_sin_contacto',
+    label: 'Días sin contacto',
+    align: 'right',
+    sortable: true,
+    sortValue: (r) => (r.latestSend?.sent_at ? daysSince(r.latestSend.sent_at) : -1),
+  },
   { key: 'accion', label: '', align: 'right' },
 ];
 
@@ -465,6 +485,20 @@ const ReactivationPanel = ({ profiles, onSelectClient }) => {
                   );
                 if (key === 'estado') return estadoBadge(row.churn_status);
                 if (key === 'campana') return campaignCell(row.latestSend);
+                if (key === 'enviado')
+                  return row.latestSend?.sent_at ? (
+                    <span style={{ color: 'var(--text-body)' }}>{fmtDate(row.latestSend.sent_at)}</span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>—</span>
+                  );
+                if (key === 'dias_sin_contacto') {
+                  const days = row.latestSend?.sent_at ? daysSince(row.latestSend.sent_at) : null;
+                  return days != null ? (
+                    <span style={{ color: 'var(--text-body)' }}>{days} d</span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>—</span>
+                  );
+                }
                 if (key === 'accion') {
                   const hasTemplates = (templates ?? []).length > 0;
                   return (
