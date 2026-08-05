@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApi } from '../hooks/use-api';
@@ -213,6 +213,23 @@ const Gastos = () => {
   const { data } = useApi(() => api.gastos({ month: `${month}-01` }), [month, refreshKey]);
   const { data: cierre } = useApi(() => api.cierreSemanal({ month: `${month}-01` }), [month, refreshKey]);
   const { data: mayoreo } = useApi(() => api.mayoreoGastos(), [refreshKey]);
+  const { data: revenueGoal } = useApi(() => api.revenueGoal({ month: `${month}-01` }), [month, refreshKey]);
+
+  const [goalInput, setGoalInput] = useState('');
+  const [savingGoal, setSavingGoal] = useState(false);
+  useEffect(() => {
+    if (revenueGoal) setGoalInput(String(revenueGoal.weekly_goal || ''));
+  }, [revenueGoal]);
+
+  const handleSaveGoal = async () => {
+    setSavingGoal(true);
+    try {
+      await api.updateRevenueGoal({ weekly_goal: Number(goalInput) || 0 }, { month: `${month}-01` });
+      setRefreshKey((k) => k + 1);
+    } finally {
+      setSavingGoal(false);
+    }
+  };
 
   const handleSync = async () => {
     setSyncing(true);
@@ -411,6 +428,161 @@ const Gastos = () => {
           )}
         </Card>
       </div>
+
+      <Card
+        eyebrow="Objetivo"
+        title="Objetivo semanal de ingresos"
+        info="Cada semana debe llegar mínimo al objetivo. Si una semana no llega, lo que faltó se suma al objetivo de la siguiente semana; si la supera, lo que sobró se resta. El objetivo aplica solo dentro del mes — no se acarrea al mes siguiente."
+        action={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span
+              style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}
+            >
+              $
+            </span>
+            <input
+              type="number"
+              min="0"
+              step="100"
+              value={goalInput}
+              onChange={(e) => setGoalInput(e.target.value)}
+              placeholder="0"
+              style={{
+                width: 110,
+                padding: '6px 10px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-default)',
+                background: 'var(--surface-card)',
+                color: 'var(--text-body)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--text-sm)',
+              }}
+            />
+            <Button variant="secondary" size="sm" onClick={handleSaveGoal} disabled={savingGoal}>
+              {savingGoal ? 'Guardando…' : 'Guardar'}
+            </Button>
+          </div>
+        }
+      >
+        {revenueGoal?.weekly_goal > 0 ? (
+          <div style={{ overflowX: 'auto' }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--text-sm)',
+              }}
+            >
+              <thead>
+                <tr>
+                  {['Semana', 'Objetivo', 'Real', 'Estado', 'Ajuste siguiente semana'].map((label, i) => (
+                    <th
+                      key={label}
+                      style={{
+                        textAlign: i === 0 ? 'left' : 'right',
+                        padding: '8px 12px',
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 'var(--fw-semibold)',
+                        letterSpacing: 'var(--ls-label)',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-muted)',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        background: 'var(--surface-sunken)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(revenueGoal.weeks ?? []).map((w, i) => (
+                  <tr key={w.semana} className="z-row">
+                    <td
+                      style={{
+                        padding: '12px',
+                        borderBottom: i < revenueGoal.weeks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{w.semana}</span>
+                      <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                        {w.from_date.slice(8)} – {w.to_date.slice(8)}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        textAlign: 'right',
+                        padding: '12px',
+                        color: 'var(--text-body)',
+                        borderBottom: i < revenueGoal.weeks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      }}
+                    >
+                      {money(w.target)}
+                    </td>
+                    <td
+                      style={{
+                        textAlign: 'right',
+                        padding: '12px',
+                        fontWeight: 600,
+                        color: 'var(--text-display)',
+                        borderBottom: i < revenueGoal.weeks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      }}
+                    >
+                      {money(w.actual)}
+                    </td>
+                    <td
+                      style={{
+                        textAlign: 'right',
+                        padding: '12px',
+                        borderBottom: i < revenueGoal.weeks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      }}
+                    >
+                      <Badge tone={w.met ? 'positive' : 'negative'} size="sm" dot>
+                        {w.met ? 'Cumplida' : 'No cumplida'}
+                      </Badge>
+                    </td>
+                    <td
+                      style={{
+                        textAlign: 'right',
+                        padding: '12px',
+                        fontWeight: 600,
+                        fontVariantNumeric: 'tabular-nums',
+                        color:
+                          w.carry_to_next > 0
+                            ? 'var(--negative)'
+                            : w.carry_to_next < 0
+                              ? 'var(--positive)'
+                              : 'var(--text-muted)',
+                        borderBottom: i < revenueGoal.weeks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      }}
+                    >
+                      {w.carry_to_next === 0
+                        ? '—'
+                        : w.carry_to_next > 0
+                          ? `+${money(w.carry_to_next)}`
+                          : `−${money(Math.abs(w.carry_to_next))}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: '20px 0',
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            Establece un objetivo semanal para ver el seguimiento de cada semana.
+          </div>
+        )}
+      </Card>
 
       {(cierre?.weeks ?? []).length > 0 && (
         <Card
