@@ -308,7 +308,7 @@ const Appointments = () => {
               renderCell={(row, key) => {
                 if (key === 'service') return row.service_name ?? '—';
                 if (key === 'status') return <ApptStatus status={row.status} />;
-                if (key === 'total') return money(row.amount ?? 0);
+                if (key === 'total') return money(row.sale_total_amount ?? row.amount ?? 0);
                 return row[key];
               }}
             />
