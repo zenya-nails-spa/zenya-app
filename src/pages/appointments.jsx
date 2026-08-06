@@ -205,9 +205,9 @@ const Appointments = () => {
   const paymentCounts = { paid, pending: Math.max(0, pending), unpaid };
 
   const displayDate = parseLocalDate(selectedDate).toLocaleDateString('es-MX', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   });
 
   const calEyebrow =

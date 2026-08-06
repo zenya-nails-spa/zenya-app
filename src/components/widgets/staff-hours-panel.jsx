@@ -8,8 +8,6 @@ import IconButton from '../ui/icon-button';
 import Select from '../ui/select';
 import DataTable from './data-table';
 
-const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-
 // The only individually-tracked manicuristas — "Cosmetología" and "Lashes y
 // cejas" are shared AgendaPro accounts for a service, not people who can owe
 // or be owed time, so they're excluded from this ledger.
@@ -17,8 +15,8 @@ const TRACKED_PROFESSIONAL_NAMES = ['Danna Aquino', 'Guadalupe Villegas Martíne
 
 function fmtDate(iso) {
   if (!iso) return '—';
-  const [y, m, d] = iso.split('-').map(Number);
-  return `${d} ${MONTHS_SHORT[m - 1]} ${y}`;
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
 }
 
 function fmtDuration(minutes) {
