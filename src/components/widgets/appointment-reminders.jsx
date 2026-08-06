@@ -31,29 +31,14 @@ Agradeceríamos mucho si nos ayudas confirmando este mensaje para tener todo lis
 
 Zenya Nails & Spa 🌸`;
 
-const MONTHS_ES = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-];
-
-function formatFechaManana(targetDateStr) {
-  const [, m, d] = (targetDateStr || '').split('-').map(Number);
-  if (!m || !d) return 'mañana';
-  return `mañana ${d} de ${MONTHS_ES[m - 1]}`;
+function formatFecha(targetDateStr) {
+  if (!targetDateStr) return '';
+  const [y, m, d] = targetDateStr.split('-');
+  return `${d}/${m}/${y}`;
 }
 
 function buildDetalleCita(appointments, targetDate) {
-  const lines = [`📅 Fecha: ${formatFechaManana(targetDate)}`];
+  const lines = [`📅 Fecha: ${formatFecha(targetDate)}`];
   (appointments ?? []).forEach((a) => {
     lines.push(`⏰ Hora: ${a.time}`);
     lines.push(`💗 Servicio: ${a.service_name ?? 'Servicio'}`);
