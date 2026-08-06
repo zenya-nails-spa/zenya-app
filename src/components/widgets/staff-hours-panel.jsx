@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Pencil } from 'lucide-react';
 import { api } from '../../lib/api';
 import Card from '../ui/card';
 import Badge from '../ui/badge';
@@ -138,6 +138,7 @@ const BalanceCard = ({ summary, active, onSelect }) => {
 
 const TimeEntrySection = ({ professional, entries, onChange }) => {
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [entryType, setEntryType] = useState('extra');
   const [amount, setAmount] = useState('');
@@ -147,6 +148,7 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
   const [saving, setSaving] = useState(false);
 
   const resetForm = () => {
+    setEditingId(null);
     setEntryDate(new Date().toISOString().slice(0, 10));
     setEntryType('extra');
     setAmount('');
@@ -155,19 +157,46 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
     setClientName('');
   };
 
+  const handleToggleForm = () => {
+    if (showForm) {
+      resetForm();
+      setShowForm(false);
+    } else {
+      resetForm();
+      setShowForm(true);
+    }
+  };
+
+  const handleEdit = (row) => {
+    setEditingId(row.id);
+    setEntryDate(row.entry_date);
+    setEntryType(row.entry_type);
+    // Editing always shows the exact stored minutes, regardless of the unit
+    // originally used to enter it — avoids any rounding drift.
+    setAmount(String(row.minutes));
+    setUnit('minutos');
+    setReason(row.reason ?? '');
+    setClientName(row.client_name ?? '');
+    setShowForm(true);
+  };
+
   const handleSubmit = async () => {
     const minutes = minutesFromInput(amount, unit);
     if (!minutes) return;
     setSaving(true);
     try {
-      await api.createStaffTimeEntry({
-        professional_id: professional.id,
+      const payload = {
         entry_date: entryDate,
         entry_type: entryType,
         minutes,
         reason: reason || null,
         client_name: entryType === 'extra' && clientName ? clientName : null,
-      });
+      };
+      if (editingId) {
+        await api.updateStaffTimeEntry(editingId, payload);
+      } else {
+        await api.createStaffTimeEntry({ professional_id: professional.id, ...payload });
+      }
       resetForm();
       setShowForm(false);
       onChange();
@@ -196,7 +225,7 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
       title={`Horas — ${professional.first_name?.trim()}`}
       info="Extra: tiempo que trabajó de más y se le debe. Debe: tiempo que ella debe al salón (faltas, permisos, salidas anticipadas)."
       action={
-        <Button size="sm" variant="soft" iconLeft={Plus} onClick={() => setShowForm((v) => !v)}>
+        <Button size="sm" variant="soft" iconLeft={Plus} onClick={handleToggleForm}>
           Agregar
         </Button>
       }
@@ -271,8 +300,13 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
             </label>
           )}
           <Button size="sm" onClick={handleSubmit} disabled={saving || !amount}>
-            Guardar
+            {editingId ? 'Guardar cambios' : 'Guardar'}
           </Button>
+          {editingId && (
+            <Button size="sm" variant="ghost" onClick={handleToggleForm} disabled={saving}>
+              Cancelar
+            </Button>
+          )}
         </div>
       )}
 
@@ -293,7 +327,10 @@ const TimeEntrySection = ({ professional, entries, onChange }) => {
             if (key === 'client_name') return row.client_name ?? '—';
             if (key === 'actions')
               return (
-                <IconButton icon={X} title="Anular" size="sm" variant="ghost" onClick={() => handleVoid(row.id)} />
+                <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                  <IconButton icon={Pencil} title="Editar" size="sm" variant="ghost" onClick={() => handleEdit(row)} />
+                  <IconButton icon={X} title="Anular" size="sm" variant="ghost" onClick={() => handleVoid(row.id)} />
+                </div>
               );
             return row[key];
           }}
