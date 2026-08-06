@@ -9,8 +9,9 @@ import AppointmentReminders from '../components/widgets/appointment-reminders';
 import ReminderCampaignPanel from '../components/widgets/reminder-campaign-panel';
 import ReminderEffectivenessCard from '../components/widgets/reminder-effectiveness-card';
 import ClientDetailModal from '../components/widgets/client-detail-modal';
+import TicketDetailModal from '../components/widgets/ticket-detail-modal';
 import Badge from '../components/ui/badge';
-import { ChevronLeft, ChevronRight, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, Clock, XCircle, AlertTriangle } from 'lucide-react';
 
 const PAYMENT_ICON_CARDS = [
   { key: 'paid', label: 'Pagadas', icon: CheckCircle, bg: 'var(--positive-soft)', iconColor: 'var(--positive)' },
@@ -60,6 +61,18 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
   const month = viewDate.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const monthStart = `${year}-${pad2(month + 1)}-01`;
+  const monthEnd = `${year}-${pad2(month + 1)}-${pad2(daysInMonth)}`;
+
+  // Which days this month have a paid ticket with no matching booking at all —
+  // always computed live, so a day stops showing red on its own once the
+  // orphan sale is fixed/removed in AgendaPro and the next sync lands.
+  const { data: conflictData } = useApi(
+    () => api.dayTicketConflicts({ from_date: monthStart, to_date: monthEnd }),
+    [monthStart, monthEnd]
+  );
+  const conflictDates = useMemo(() => new Set(conflictData?.conflicting_dates ?? []), [conflictData]);
 
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -69,6 +82,7 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
   const selDate = parseLocalDate(selectedDate);
   const isSelected = (d) => d === selDate.getDate() && month === selDate.getMonth() && year === selDate.getFullYear();
   const isToday = (d) => d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+  const hasConflict = (d) => d != null && conflictDates.has(`${year}-${pad2(month + 1)}-${pad2(d)}`);
 
   return (
     <div>
@@ -139,20 +153,30 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
               }
             }}
             disabled={!d}
+            title={hasConflict(d) ? 'Hay un ticket cobrado sin cita asociada este día' : undefined}
             style={{
+              position: 'relative',
               textAlign: 'center',
               fontFamily: 'var(--font-sans)',
               fontSize: 'var(--text-xs)',
-              fontWeight: isToday(d) || isSelected(d) ? 'var(--fw-bold)' : 'var(--fw-regular)',
+              fontWeight: isToday(d) || isSelected(d) || hasConflict(d) ? 'var(--fw-bold)' : 'var(--fw-regular)',
               color: isSelected(d)
                 ? 'var(--white)'
-                : isToday(d)
-                  ? 'var(--brand-primary)'
-                  : d
-                    ? 'var(--text-body)'
+                : hasConflict(d)
+                  ? 'var(--negative)'
+                  : isToday(d)
+                    ? 'var(--brand-primary)'
+                    : d
+                      ? 'var(--text-body)'
+                      : 'transparent',
+              background: isSelected(d)
+                ? 'var(--brand-primary)'
+                : hasConflict(d)
+                  ? 'var(--negative-soft)'
+                  : isToday(d)
+                    ? 'var(--rose-100)'
                     : 'transparent',
-              background: isSelected(d) ? 'var(--brand-primary)' : isToday(d) ? 'var(--rose-100)' : 'transparent',
-              border: 'none',
+              border: isSelected(d) && hasConflict(d) ? '2px solid var(--negative)' : 'none',
               borderRadius: 6,
               padding: '5px 0',
               cursor: d ? 'pointer' : 'default',
@@ -169,15 +193,18 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
 const Appointments = () => {
   const [selectedDate, setSelectedDate] = useState(localToday);
   const [selectedClientId, setSelectedClientId] = useState(null);
+  const [selectedTicketSaleId, setSelectedTicketSaleId] = useState(null);
   const { data: bookings, loading } = useApi(
     () => api.bookings({ from_date: selectedDate, to_date: selectedDate, limit: 200 }),
     [selectedDate]
   );
   const { data: profList } = useApi(() => api.professionals(), []);
-  // Real revenue for the day comes from actual sales (accounts for discounts /
-  // services added at checkout), not from the amount each booking was scheduled at.
-  const { data: revenueDay, loading: revenueLoading } = useApi(
-    () => api.revenueByDay({ from_date: selectedDate, to_date: selectedDate }),
+  // Groups the day's bookings that share a checkout (cart_id) into a single
+  // ticket with the sale's real total — accounts for discounts and services
+  // added at checkout that a per-booking amount sum would miss — and flags
+  // any sale for the day that isn't tied to a single scheduled booking at all.
+  const { data: dayTickets, loading: ticketsLoading } = useApi(
+    () => api.dayTickets({ date: selectedDate }),
     [selectedDate]
   );
 
@@ -203,8 +230,59 @@ const Appointments = () => {
   const paid = rows.filter((r) => r.payment_status === 'ASSOCIATED' || r.status === 'paid').length;
   const unpaid = rows.filter((r) => !r.payment_status || r.payment_status === 'UNPAID').length;
   const pending = rows.length - paid - unpaid;
-  const totalRev = (revenueDay ?? []).reduce((s, d) => s + (d.revenue ?? 0), 0);
+  const totalRev = dayTickets?.revenue_total ?? 0;
   const paymentCounts = { paid, pending: Math.max(0, pending), unpaid };
+
+  // Every booking id belonging to a ticket (used both to drop those bookings
+  // from the individual-row list below and, inside the ticket detail modal,
+  // to tell agenda-matched items apart from checkout add-ons).
+  const agendaBookingIds = useMemo(() => {
+    const set = new Set();
+    (dayTickets?.tickets ?? []).forEach((t) => t.booking_ids.forEach((id) => set.add(id)));
+    return set;
+  }, [dayTickets]);
+
+  const ticketRows = useMemo(
+    () =>
+      (dayTickets?.tickets ?? []).map((t) => ({
+        key: `ticket-${t.cart_id}`,
+        isTicket: true,
+        saleId: t.sale_id,
+        sortTime: t.time,
+        time: t.time ? new Date(t.time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—',
+        service: t.agenda_services.join(', ') || '—',
+        professional: t.professionals.join(', ') || '—',
+        status: 'paid',
+        total: t.total,
+      })),
+    [dayTickets, profNames]
+  );
+
+  // Bookings not swept into a ticket — unpaid/pending citas, or a cart_id
+  // AgendaPro hasn't finalized a sale for yet — keep showing individually.
+  const looseRows = useMemo(
+    () =>
+      rows
+        .filter((r) => !agendaBookingIds.has(r.id))
+        .map((r) => ({
+          key: `booking-${r.id}`,
+          isTicket: false,
+          sortTime: r.start,
+          time: r.time,
+          service: r.service_name ?? '—',
+          professional: r.professional,
+          status: r.status,
+          total: r.amount ?? 0,
+        })),
+    [rows, agendaBookingIds]
+  );
+
+  const combinedRows = useMemo(
+    () => [...ticketRows, ...looseRows].sort((a, b) => new Date(a.sortTime || 0) - new Date(b.sortTime || 0)),
+    [ticketRows, looseRows]
+  );
+
+  const conflictingTickets = dayTickets?.conflicting_tickets ?? [];
 
   const displayDate = parseLocalDate(selectedDate).toLocaleDateString('es-MX', {
     day: '2-digit',
@@ -282,16 +360,50 @@ const Appointments = () => {
         />
         <StatCard
           label="Ingresos del día"
-          value={revenueLoading ? '…' : money(totalRev)}
+          value={ticketsLoading ? '…' : money(totalRev)}
           caption="citas con pago"
           icon="DollarSign"
         />
         <StatCard label="Pendientes" value={loading ? '…' : String(pending)} caption={`${paid} pagadas`} icon="Clock" />
       </div>
 
+      {!ticketsLoading && conflictingTickets.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 12,
+            padding: '14px 16px',
+            borderRadius: 'var(--radius-lg)',
+            background: 'var(--negative-soft)',
+            border: '1px solid var(--negative)',
+          }}
+        >
+          <AlertTriangle size={18} strokeWidth={1.8} color="var(--negative)" style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>
+            <strong style={{ color: 'var(--negative)' }}>
+              {conflictingTickets.length === 1
+                ? 'Hay un ticket cobrado que no coincide con ninguna cita en la agenda'
+                : `Hay ${conflictingTickets.length} tickets cobrados que no coinciden con ninguna cita en la agenda`}
+            </strong>
+            <div style={{ marginTop: 4 }}>
+              {conflictingTickets.map((c) => (
+                <div key={c.sale_id}>
+                  Ticket {c.internal_id ?? c.sale_id} — {money(c.total)}
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 4, color: 'var(--text-muted)' }}>
+              Revísalo directamente en AgendaPro — el dinero se cobró pero no está ligado a ninguna cita agendada este
+              día.
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="z-appt-layout">
         <Card eyebrow="Agenda" title={`Citas — ${displayDate}`}>
-          {loading ? (
+          {loading || ticketsLoading ? (
             <div
               style={{
                 padding: '20px 0',
@@ -303,14 +415,28 @@ const Appointments = () => {
             >
               Cargando...
             </div>
-          ) : rows.length ? (
+          ) : combinedRows.length ? (
             <DataTable
               columns={APPT_COLS}
-              rows={rows}
+              rows={combinedRows}
               renderCell={(row, key) => {
-                if (key === 'service') return row.service_name ?? '—';
+                if (key === 'service') {
+                  const label = row.service.length > 46 ? row.service.slice(0, 46) + '…' : row.service;
+                  return row.isTicket ? (
+                    <button
+                      type="button"
+                      className="z-client-name"
+                      title="Ver desglose del ticket"
+                      onClick={() => setSelectedTicketSaleId(row.saleId)}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <span title={row.service}>{label}</span>
+                  );
+                }
                 if (key === 'status') return <ApptStatus status={row.status} />;
-                if (key === 'total') return money(row.sale_total_amount ?? row.amount ?? 0);
+                if (key === 'total') return money(row.total);
                 return row[key];
               }}
             />
@@ -423,6 +549,11 @@ Tu experiencia es muy valiosa para nosotras y nos ayuda a seguir creando momento
       <ReminderEffectivenessCard />
 
       <ClientDetailModal clientId={selectedClientId} onClose={() => setSelectedClientId(null)} />
+      <TicketDetailModal
+        saleId={selectedTicketSaleId}
+        agendaBookingIds={agendaBookingIds}
+        onClose={() => setSelectedTicketSaleId(null)}
+      />
     </div>
   );
 };

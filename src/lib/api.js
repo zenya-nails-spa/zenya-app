@@ -58,6 +58,8 @@ export const api = {
   paymentMethodsBreakdown: (params) => get('/analytics/payment-methods-breakdown', params),
   clientRetention: (params) => get('/analytics/client-retention', params),
   clientStats: (params) => get('/analytics/client-stats', params),
+  dayTickets: (params) => get('/analytics/day-tickets', params),
+  dayTicketConflicts: (params) => get('/analytics/day-tickets/conflicts', params),
 
   // analytics — new endpoints (to be implemented in zenya-api)
   healthScore: (params) => get('/analytics/health-score', params),
@@ -80,6 +82,7 @@ export const api = {
 
   // resources
   sales: (params) => get('/sales', params),
+  sale: (saleId) => get(`/sales/${saleId}`),
   salesSummary: (params) => get('/sales/summary', params),
   bookings: (params) => get('/bookings', params),
   clients: (params) => get('/clients', params),
