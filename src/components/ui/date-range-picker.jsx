@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { CalendarDays, ChevronDown } from 'lucide-react';
 
-const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-
 function fmtDate(iso) {
   if (!iso) return '';
-  const [, m, d] = iso.split('-');
-  return `${parseInt(d)} ${MONTHS_SHORT[parseInt(m) - 1]}`;
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
 }
 
 function todayIso() {
