@@ -182,7 +182,15 @@ const ReminderCampaignPanel = ({
     if (!template || !client.phone) return;
     const message = fillTemplate(template.body, client.first_name);
     window.open(buildWhatsappUrl(client.phone, message), '_blank', 'noopener');
-    await api.createWhatsappSend({ client_id: client.client_id, template_id: template.id });
+    try {
+      await api.createWhatsappSend({ client_id: client.client_id, template_id: template.id });
+    } catch (err) {
+      // The WhatsApp Web tab is already open at this point (can't undo
+      // that) — this just means the send wasn't logged, most likely
+      // because she rebooked between when this list loaded and now.
+      alert(err.message || 'No se pudo registrar el envío.');
+      return;
+    }
     setClients((prev) =>
       prev.map((c) =>
         c.client_id === client.client_id ? { ...c, reminder_sent: true, reminder_sent_at: new Date().toISOString() } : c

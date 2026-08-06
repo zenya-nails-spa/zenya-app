@@ -183,6 +183,12 @@ const CANDIDATE_COLS = [
     sortValue: (r) => r.days_since_last,
   },
   { key: 'estado', label: 'Estado', sortable: true, sortValue: (r) => ESTADO_RANK[r.churn_status] ?? 3 },
+  {
+    key: 'proxima_cita',
+    label: 'Próxima cita',
+    sortable: true,
+    sortValue: (r) => r.next_booking_date ?? '',
+  },
   { key: 'campana', label: 'Campaña', sortable: true, sortValue: (r) => campaignRank(r.latestSend) },
   {
     key: 'enviado',
@@ -227,7 +233,13 @@ const ReactivationPanel = ({ profiles, onSelectClient }) => {
     const profileByClient = new Map((profiles ?? []).map((p) => [p.client_id, p]));
     const ids = new Set();
     (profiles ?? []).forEach((p) => {
-      if (p.churn_status === 'at_risk' || p.churn_status === 'churned') ids.add(p.client_id);
+      // A client already has something booked doesn't need a nudge to come
+      // back — this is the exact check that was missing when a reminder
+      // went out to a client who'd already rebooked (see backend
+      // has_upcoming_booking / REACTIVATION_UPCOMING_BOOKING_DAYS).
+      if ((p.churn_status === 'at_risk' || p.churn_status === 'churned') && !p.has_upcoming_booking) {
+        ids.add(p.client_id);
+      }
     });
     // Keep clients we've contacted before even after they come back — we still want to see the win.
     latestSendByClient.forEach((_send, clientId) => ids.add(clientId));
@@ -243,6 +255,7 @@ const ReactivationPanel = ({ profiles, onSelectClient }) => {
           phone: profile?.phone ?? send?.phone,
           days_since_last: profile?.days_since_last ?? null,
           churn_status: profile?.churn_status ?? null,
+          next_booking_date: profile?.next_booking_date ?? null,
           latestSend: send,
         };
       })
@@ -275,7 +288,14 @@ const ReactivationPanel = ({ profiles, onSelectClient }) => {
     if (!template || !client.phone) return;
     const message = fillTemplate(template.body, client.first_name);
     window.open(buildWhatsappUrl(client.phone, message), '_blank', 'noopener');
-    await api.createWhatsappSend({ client_id: client.client_id, template_id: template.id });
+    try {
+      await api.createWhatsappSend({ client_id: client.client_id, template_id: template.id });
+    } catch (err) {
+      // The WhatsApp Web tab is already open at this point (can't undo
+      // that) — this just means the send wasn't logged, most likely
+      // because she rebooked between when this list loaded and now.
+      alert(err.message || 'No se pudo registrar el envío.');
+    }
     setRefreshKey((k) => k + 1);
   };
 
@@ -484,6 +504,14 @@ const ReactivationPanel = ({ profiles, onSelectClient }) => {
                     <span style={{ color: 'var(--text-muted)' }}>—</span>
                   );
                 if (key === 'estado') return estadoBadge(row.churn_status);
+                if (key === 'proxima_cita')
+                  return row.next_booking_date ? (
+                    <Badge tone="caution" size="sm">
+                      {fmtDate(row.next_booking_date)}
+                    </Badge>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>—</span>
+                  );
                 if (key === 'campana') return campaignCell(row.latestSend);
                 if (key === 'enviado')
                   return row.latestSend?.sent_at ? (
