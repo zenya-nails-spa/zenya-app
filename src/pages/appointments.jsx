@@ -8,6 +8,7 @@ import ApptStatus from '../components/widgets/appt-status';
 import AppointmentReminders from '../components/widgets/appointment-reminders';
 import ReminderCampaignPanel from '../components/widgets/reminder-campaign-panel';
 import ReminderEffectivenessCard from '../components/widgets/reminder-effectiveness-card';
+import ClientDetailModal from '../components/widgets/client-detail-modal';
 import Badge from '../components/ui/badge';
 import { ChevronLeft, ChevronRight, CheckCircle, Clock, XCircle } from 'lucide-react';
 
@@ -167,6 +168,7 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
 
 const Appointments = () => {
   const [selectedDate, setSelectedDate] = useState(localToday);
+  const [selectedClientId, setSelectedClientId] = useState(null);
   const { data: bookings, loading } = useApi(
     () => api.bookings({ from_date: selectedDate, to_date: selectedDate, limit: 200 }),
     [selectedDate]
@@ -387,6 +389,7 @@ Será un placer atenderte 💕 Bonito día! ☺️`}
         emptyBeforeSyncText='Da clic en "Sincronizar clientas de retoque" para ver quién tiene retoque pendiente.'
         emptyAfterSyncText="No hay clientas con retoque pendiente hoy."
         dismissable
+        onSelectClient={setSelectedClientId}
       />
 
       <ReminderCampaignPanel
@@ -414,9 +417,12 @@ Tu experiencia es muy valiosa para nosotras y nos ayuda a seguir creando momento
         emptyBeforeSyncText='Da clic en "Sincronizar clientas nuevas de hoy" para ver quién visitó por primera vez.'
         emptyAfterSyncText="No hay clientas nuevas hoy."
         dismissable
+        onSelectClient={setSelectedClientId}
       />
 
       <ReminderEffectivenessCard />
+
+      <ClientDetailModal clientId={selectedClientId} onClose={() => setSelectedClientId(null)} />
     </div>
   );
 };

@@ -63,6 +63,7 @@ const ReminderCampaignPanel = ({
   emptyBeforeSyncText,
   emptyAfterSyncText,
   dismissable = false,
+  onSelectClient,
 }) => {
   const [template, setTemplate] = useState(null);
   const [templateLoaded, setTemplateLoaded] = useState(false);
@@ -328,7 +329,18 @@ const ReminderCampaignPanel = ({
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Avatar name={row.name} size="sm" tone="ink" />
-                    <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.name}</span>
+                    {onSelectClient ? (
+                      <button
+                        type="button"
+                        className="z-client-name"
+                        title="Ver historial de la clienta"
+                        onClick={() => onSelectClient(row.client_id)}
+                      >
+                        {row.name}
+                      </button>
+                    ) : (
+                      <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.name}</span>
+                    )}
                   </div>
                 );
               if (key === 'phone') return <span style={{ color: 'var(--text-secondary)' }}>{row.phone ?? '—'}</span>;
