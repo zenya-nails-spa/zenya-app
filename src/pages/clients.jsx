@@ -596,7 +596,7 @@ const Clients = ({ dateRange }) => {
           <Card
             eyebrow="Riesgo de fuga"
             title="Clasificación de clientas"
-            info="Toda clienta que ha comprado alguna vez, clasificada por su última visita: Activa (menos de 45 días), En riesgo (45–89) o Perdida (90+). Ingreso perdido estima cuánto dejó de gastar según su ticket promedio y el tiempo ausente. Haz clic en los encabezados para ordenar."
+            info="Toda clienta que ha comprado alguna vez, clasificada solo por su última visita: Activa (menos de 45 días), En riesgo (45–89) o Perdida (90+). Ingreso perdido estima cuánto dejó de gastar según su ticket promedio y el tiempo ausente. Haz clic en los encabezados para ordenar. Nota: esta clasificación es distinta a la de CLV & Segmentos, que prioriza el valor histórico (VIP/Leal) sobre la antigüedad — una clienta puede aparecer 'En riesgo' o 'Perdida' aquí y como 'VIP'/'Leal' allá."
             action={
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <input
@@ -757,7 +757,7 @@ const Clients = ({ dateRange }) => {
           <Card
             eyebrow="Valor"
             title="Ingresos por segmento"
-            info="Ingresos históricos totales agrupados por tipo de clienta. VIP: $3,000+ y 6+ visitas. Leal: $1,200+ y 3+ visitas. En riesgo: 45–89 días sin venir. Perdida: 90+ días. Ocasional: el resto."
+            info="Ingresos históricos totales agrupados por tipo de clienta. El valor histórico manda sobre la antigüedad: primero se evalúa VIP ($3,000+ y 6+ visitas) y Leal ($1,200+ y 3+ visitas); solo si no califica para ninguno se clasifica por días sin venir — En riesgo (45–89) o Perdida (90+). Ocasional: el resto. Por eso una clienta valiosa que no ha vuelto en 90+ días puede aparecer como VIP o Leal aquí, aunque en Retención cuente como 'Perdida'."
           >
             {clvSegments.length > 0 ? (
               <div style={{ display: 'flex', gap: 32, alignItems: 'center', flexWrap: 'wrap' }}>
