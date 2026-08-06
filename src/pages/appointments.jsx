@@ -172,6 +172,12 @@ const Appointments = () => {
     [selectedDate]
   );
   const { data: profList } = useApi(() => api.professionals(), []);
+  // Real revenue for the day comes from actual sales (accounts for discounts /
+  // services added at checkout), not from the amount each booking was scheduled at.
+  const { data: revenueDay, loading: revenueLoading } = useApi(
+    () => api.revenueByDay({ from_date: selectedDate, to_date: selectedDate }),
+    [selectedDate]
+  );
 
   const profNames = useMemo(() => {
     const map = {};
@@ -195,7 +201,7 @@ const Appointments = () => {
   const paid = rows.filter((r) => r.payment_status === 'ASSOCIATED' || r.status === 'paid').length;
   const unpaid = rows.filter((r) => !r.payment_status || r.payment_status === 'UNPAID').length;
   const pending = rows.length - paid - unpaid;
-  const totalRev = rows.reduce((s, r) => s + (r.amount ?? 0), 0);
+  const totalRev = (revenueDay ?? []).reduce((s, d) => s + (d.revenue ?? 0), 0);
   const paymentCounts = { paid, pending: Math.max(0, pending), unpaid };
 
   const displayDate = parseLocalDate(selectedDate).toLocaleDateString('es-MX', {
@@ -274,7 +280,7 @@ const Appointments = () => {
         />
         <StatCard
           label="Ingresos del día"
-          value={loading ? '…' : money(totalRev)}
+          value={revenueLoading ? '…' : money(totalRev)}
           caption="citas con pago"
           icon="DollarSign"
         />
