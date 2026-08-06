@@ -17,7 +17,17 @@ async function post(path, body, params) {
     headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  if (!res.ok) {
+    // FastAPI's HTTPException detail (e.g. "ya tiene una cita agendada...")
+    // is much more useful to a caller than a bare status code — surface it
+    // when present instead of always throwing the generic message.
+    const detail = await res
+      .clone()
+      .json()
+      .then((d) => d.detail)
+      .catch(() => null);
+    throw new Error(detail || `API ${res.status}: ${path}`);
+  }
   return res.json();
 }
 
