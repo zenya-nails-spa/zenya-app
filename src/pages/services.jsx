@@ -38,11 +38,20 @@ const PRODUCT_COLUMNS = [
 
 const Services = ({ dateRange }) => {
   const deps = [dateRange.from_date, dateRange.to_date];
-  const { data: rawTopServices } = useApi(() => api.topServices({ ...dateRange, limit: 20 }), deps);
+  // High limit on purpose: this feeds both the "Todos los servicios" table (which should
+  // really show all of them) and the "Servicio top"/"Más demandado" KPI cards below, which
+  // reduce over this same list. Capping it low silently drops rare, high-revenue-or-count
+  // services from those KPI computations even though their data is correct — they just
+  // never rank in a small top N by revenue (the backend's sort key).
+  const { data: rawTopServices } = useApi(() => api.topServices({ ...dateRange, limit: 500 }), deps);
   const { data: categoriesData } = useApi(() => api.serviceCategories(dateRange), deps);
   const { data: crossSellData } = useApi(() => api.crossSell(dateRange), deps);
   const { data: repeatData } = useApi(() => api.serviceRepeatRate(dateRange), deps);
   const { data: rawTopProducts } = useApi(() => api.topProducts({ ...dateRange, limit: 20 }), deps);
+  // "Mayor ticket" means the biggest single checkout (one whole sale), not the highest
+  // per-service-name average — a client's visit is often several different services/
+  // products in one sale, and no individual service's own average reflects that total.
+  const { data: salesSummary } = useApi(() => api.salesSummary(dateRange), deps);
 
   const services = useMemo(
     () =>
@@ -76,7 +85,6 @@ const Services = ({ dateRange }) => {
 
   const topRev = services.length ? services.reduce((a, b) => (a.rev > b.rev ? a : b)) : null;
   const topCount = services.length ? services.reduce((a, b) => (a.count > b.count ? a : b)) : null;
-  const topAvg = services.length ? services.reduce((a, b) => (a.avg > b.avg ? a : b)) : null;
 
   const categories = useMemo(() => {
     if (!categoriesData?.length) return [];
@@ -110,8 +118,8 @@ const Services = ({ dateRange }) => {
         />
         <StatCard
           label="Mayor ticket"
-          value={topAvg ? money(topAvg.avg) : '—'}
-          caption={topAvg?.name ?? '—'}
+          value={salesSummary?.max_ticket != null ? money(salesSummary.max_ticket) : '—'}
+          caption={salesSummary?.max_ticket_client ?? '—'}
           icon="DollarSign"
         />
         <StatCard
