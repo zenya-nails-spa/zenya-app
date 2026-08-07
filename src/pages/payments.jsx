@@ -27,6 +27,28 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }
 
+// Same "cash"/"debit_card"/... AgendaPro payment method codes used in
+// pages/revenue.jsx's breakdown and the sale-detail modal.
+const METHOD_LABELS = {
+  cash: 'Efectivo',
+  debit_card: 'Tarjeta débito',
+  credit_card: 'Tarjeta crédito',
+  pos: 'Terminal (POS)',
+  wire_transfer: 'Transferencia',
+};
+
+function methodLabel(method) {
+  if (!method) return '—';
+  return METHOD_LABELS[method] ?? method;
+}
+
+// Distinct payment methods used across a sale's transactions -- a ticket
+// paid partly in cash and partly by card has one entry per method, which is
+// exactly what marks it as split.
+function saleMethods(sale) {
+  return [...new Set((sale.transactions ?? []).map((t) => t.payment_method).filter(Boolean))];
+}
+
 function saleStatus(sale) {
   if (sale.status === 'canceled') return 'canceled';
   if ((sale.pending_amount ?? 0) > 0) return 'pending';
@@ -53,11 +75,32 @@ function statusBadge(status) {
   );
 }
 
+function methodCell(methods) {
+  if (!methods.length) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+  if (methods.length > 1)
+    return (
+      <Badge tone="lavender" size="sm" dot>
+        Dividido
+      </Badge>
+    );
+  return methodLabel(methods[0]);
+}
+
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Todos los estados' },
   { value: 'paid', label: 'Pagadas' },
   { value: 'pending', label: 'Pendientes' },
   { value: 'canceled', label: 'Canceladas' },
+];
+
+const METHOD_OPTIONS = [
+  { value: 'all', label: 'Todos los métodos' },
+  { value: 'cash', label: 'Efectivo' },
+  { value: 'non_cash', label: 'Todos menos efectivo' },
+  ...Object.entries(METHOD_LABELS)
+    .filter(([value]) => value !== 'cash')
+    .map(([value, label]) => ({ value, label })),
+  { value: 'split', label: 'Pago dividido' },
 ];
 
 const COLUMNS = [
@@ -66,6 +109,7 @@ const COLUMNS = [
   { key: 'hora', label: 'Hora' },
   { key: 'clienta', label: 'Clienta' },
   { key: 'monto', label: 'Monto', align: 'right' },
+  { key: 'metodo', label: 'Método' },
   { key: 'estado', label: 'Estado' },
 ];
 
@@ -76,6 +120,7 @@ const Payments = ({ dateRange }) => {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [methodFilter, setMethodFilter] = useState('all');
   const [selectedSale, setSelectedSale] = useState(null);
 
   const truncated = (sales?.length ?? 0) >= FETCH_LIMIT && (summary?.total_sales ?? 0) > FETCH_LIMIT;
@@ -85,20 +130,39 @@ const Payments = ({ dateRange }) => {
     // back from AgendaPro as e.g. "#3013"), plus the underlying numeric id.
     const term = search.trim().toLowerCase().replace(/^#/, '');
     return (sales ?? [])
-      .map((s) => ({
-        ...s,
-        clienta: [s.client_first_name, s.client_last_name].filter(Boolean).join(' ').trim() || '—',
-        _status: saleStatus(s),
-      }))
+      .map((s) => {
+        const methods = saleMethods(s);
+        return {
+          ...s,
+          clienta: [s.client_first_name, s.client_last_name].filter(Boolean).join(' ').trim() || '—',
+          _status: saleStatus(s),
+          _methods: methods,
+          _isSplit: methods.length > 1,
+        };
+      })
       .filter((s) => (statusFilter === 'all' ? true : s._status === statusFilter))
+      .filter((s) => {
+        if (methodFilter === 'all') return true;
+        if (methodFilter === 'split') return s._isSplit;
+        // "Todos menos efectivo": any ticket with at least one non-cash method
+        // -- a split cash+card ticket still had a non-cash component, so it
+        // shows here too, same as it does under "Efectivo".
+        if (methodFilter === 'non_cash') return s._methods.some((m) => m !== 'cash');
+        return s._methods.includes(methodFilter);
+      })
       .filter((s) => {
         if (!term) return true;
         const ticketId = (s.internal_id || '').toLowerCase().replace(/^#/, '');
         return s.clienta.toLowerCase().includes(term) || ticketId.includes(term) || String(s.id).includes(term);
       });
-  }, [sales, search, statusFilter]);
+  }, [sales, search, statusFilter, methodFilter]);
 
-  const pagination = usePagination(rows.length, 25, `${statusFilter}|${search}`);
+  const pagination = usePagination(rows.length, 25, `${statusFilter}|${methodFilter}|${search}`);
+
+  // Sum of exactly what's in the "Monto" column across every filtered row
+  // (not just the current page) -- responds live to search/estado/método,
+  // unlike the KPI cards above which always reflect the whole period.
+  const filteredTotal = useMemo(() => rows.reduce((sum, r) => sum + (r.total_amount ?? 0), 0), [rows]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -131,6 +195,7 @@ const Payments = ({ dateRange }) => {
               }}
             />
             <Select size="sm" value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
+            <Select size="sm" value={methodFilter} onChange={setMethodFilter} options={METHOD_OPTIONS} />
           </div>
         }
       >
@@ -164,6 +229,24 @@ const Payments = ({ dateRange }) => {
           </div>
         ) : rows.length ? (
           <>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'baseline',
+                gap: 8,
+                marginBottom: 10,
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+                Total de {rows.length.toLocaleString('es-MX')} ticket{rows.length === 1 ? '' : 's'} mostrado
+                {rows.length === 1 ? '' : 's'}:
+              </span>
+              <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-display)' }}>
+                {money(filteredTotal)}
+              </span>
+            </div>
             <DataTable
               columns={COLUMNS}
               rows={rows}
@@ -195,6 +278,7 @@ const Payments = ({ dateRange }) => {
                     </button>
                   );
                 if (key === 'monto') return <span style={{ fontWeight: 600 }}>{money(row.total_amount)}</span>;
+                if (key === 'metodo') return methodCell(row._methods);
                 if (key === 'estado') return statusBadge(row._status);
                 return row[key] ?? '—';
               }}
