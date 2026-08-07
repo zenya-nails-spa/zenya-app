@@ -57,6 +57,7 @@ export const api = {
   commissionAnomalies: (params) => get('/analytics/commission-anomalies', params),
   paymentMethodsBreakdown: (params) => get('/analytics/payment-methods-breakdown', params),
   clientRetention: (params) => get('/analytics/client-retention', params),
+  retentionTrend: (params) => get('/analytics/retention-trend', params),
   clientStats: (params) => get('/analytics/client-stats', params),
   dayTickets: (params) => get('/analytics/day-tickets', params),
   dayTicketConflicts: (params) => get('/analytics/day-tickets/conflicts', params),
