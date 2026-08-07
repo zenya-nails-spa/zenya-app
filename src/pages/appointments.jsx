@@ -386,16 +386,24 @@ const Appointments = () => {
                 ? 'Hay un ticket cobrado que no coincide con ninguna cita en la agenda'
                 : `Hay ${conflictingTickets.length} tickets cobrados que no coinciden con ninguna cita en la agenda`}
             </strong>
-            <div style={{ marginTop: 4 }}>
+            <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
               {conflictingTickets.map((c) => (
                 <div key={c.sale_id}>
-                  Ticket {c.internal_id ?? c.sale_id} — {money(c.total)}
+                  <button
+                    type="button"
+                    className="z-client-name"
+                    title="Ver detalle del ticket"
+                    onClick={() => setSelectedTicketSaleId(c.sale_id)}
+                  >
+                    Ticket {c.internal_id ?? c.sale_id}
+                  </button>{' '}
+                  — {money(c.total)}
                 </div>
               ))}
             </div>
             <div style={{ marginTop: 4, color: 'var(--text-muted)' }}>
-              Revísalo directamente en AgendaPro — el dinero se cobró pero no está ligado a ninguna cita agendada este
-              día.
+              Haz clic en un ticket para ver su detalle — el dinero se cobró pero no está ligado a ninguna cita agendada
+              este día.
             </div>
           </div>
         </div>

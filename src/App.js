@@ -13,6 +13,7 @@ import NotificationBell from './components/widgets/notification-bell';
 import Login from './pages/login';
 import Overview from './pages/overview';
 import Revenue from './pages/revenue';
+import Payments from './pages/payments';
 import Services from './pages/services';
 import Staff from './pages/staff';
 import Clients from './pages/clients';
@@ -23,6 +24,7 @@ import SettingsPage from './pages/settings';
 const NAV = [
   { id: 'overview', label: 'Resumen', icon: 'LayoutDashboard' },
   { id: 'revenue', label: 'Ingresos', icon: 'TrendingUp' },
+  { id: 'payments', label: 'Pagos', icon: 'Receipt' },
   { id: 'services', label: 'Servicios', icon: 'Sparkles' },
   { id: 'staff', label: 'Personal', icon: 'Users' },
   { id: 'clients', label: 'Clientas', icon: 'Heart' },
@@ -34,6 +36,7 @@ const NAV = [
 const PAGE_META = {
   overview: { eyebrow: 'Dashboard', title: 'Resumen general', subtitle: 'Vista consolidada del negocio' },
   revenue: { eyebrow: 'Finanzas', title: 'Ingresos', subtitle: 'Análisis de ventas y tendencias' },
+  payments: { eyebrow: 'Finanzas', title: 'Historial de pagos', subtitle: 'Todos los tickets de venta del período' },
   services: { eyebrow: 'Catálogo', title: 'Servicios', subtitle: 'Rendimiento por servicio' },
   staff: { eyebrow: 'Equipo', title: 'Personal', subtitle: 'Métricas de desempeño' },
   clients: { eyebrow: 'CRM', title: 'Clientas', subtitle: 'Base de datos y segmentación' },
@@ -47,6 +50,7 @@ const HIDE_RANGE = new Set(['settings', 'appointments', 'gastos']);
 const PAGE_MAP = {
   overview: Overview,
   revenue: Revenue,
+  payments: Payments,
   services: Services,
   staff: Staff,
   clients: Clients,
