@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, Calendar, Palmtree, Clock3 } from 'lucide-react';
+import { Bell, Calendar, Palmtree, Clock3, AlarmClock } from 'lucide-react';
 import { api } from '../../lib/api';
 
 const POLL_MS = 60000;
@@ -93,7 +93,8 @@ const NotificationBell = ({ onNavigate }) => {
   const hasAlerts =
     (alerts?.pending_reminders?.length ?? 0) +
       (alerts?.upcoming_vacations?.length ?? 0) +
-      (alerts?.owed_hours?.length ?? 0) >
+      (alerts?.owed_hours?.length ?? 0) +
+      (alerts?.custom_reminders?.length ?? 0) >
     0;
 
   return (
@@ -198,6 +199,28 @@ const NotificationBell = ({ onNavigate }) => {
                   title={r.label}
                   subtitle={`${r.count} por enviar`}
                   onClick={() => goTo('appointments')}
+                />
+              ))}
+            </>
+          )}
+
+          {alerts?.custom_reminders?.length > 0 && (
+            <>
+              <SectionLabel>Recordatorios</SectionLabel>
+              {alerts.custom_reminders.map((r) => (
+                <AlertRow
+                  key={r.id}
+                  icon={AlarmClock}
+                  iconColor="var(--caution)"
+                  title={r.label}
+                  subtitle={
+                    r.days_until === 0
+                      ? 'Es hoy'
+                      : r.days_until === 1
+                        ? 'Es mañana'
+                        : `En ${r.days_until} días · ${r.due_date}`
+                  }
+                  onClick={() => goTo('settings')}
                 />
               ))}
             </>

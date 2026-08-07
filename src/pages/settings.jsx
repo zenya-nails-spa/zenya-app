@@ -9,6 +9,7 @@ import Avatar from '../components/ui/avatar';
 import Badge from '../components/ui/badge';
 import Select from '../components/ui/select';
 import SegmentedControl from '../components/ui/segmented-control';
+import CustomRemindersPanel from '../components/widgets/custom-reminders-panel';
 
 const inputStyle = {
   height: 38,
@@ -191,6 +192,7 @@ const CommissionWeekStrip = ({ startDay, endDay, payDay }) => {
 const TABS = [
   { value: 'negocio', label: 'Negocio' },
   { value: 'personal', label: 'Personal' },
+  { value: 'recordatorios', label: 'Recordatorios' },
   { value: 'cuenta', label: 'Cuenta' },
   { value: 'preferencias', label: 'Preferencias' },
 ];
@@ -1090,6 +1092,12 @@ const Settings = () => {
               ))
             )}
           </Card>
+        </div>
+      )}
+
+      {tab === 'recordatorios' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <CustomRemindersPanel />
         </div>
       )}
 
