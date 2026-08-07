@@ -298,6 +298,7 @@ const Gastos = () => {
     a.status === b.status ? 0 : a.status === 'anomaly' ? -1 : 1
   );
   const anomalyCount = anomalyRows.filter((r) => r.status === 'anomaly').length;
+  const totalCommissionSavings = anomalies?.total_commission_savings ?? 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
@@ -607,9 +608,18 @@ const Gastos = () => {
         info="Compara cada pago de comisión contra lo que debería ser según el % (y el mínimo garantizado, si aplica) configurado para el período de esa colaboradora en Ajustes → Personal."
         action={
           anomalyRows.length > 0 && (
-            <Badge tone={anomalyCount > 0 ? 'negative' : 'positive'} size="sm" dot>
-              {anomalyCount > 0 ? `${anomalyCount} anomalía${anomalyCount === 1 ? '' : 's'}` : 'Todo cuadra'}
-            </Badge>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {totalCommissionSavings > 0 && (
+                <span title="Comisión que no se pagó por los servicios sin comisión configurados en Ajustes → Personal">
+                  <Badge tone="lavender" size="sm">
+                    Ahorro: {money(totalCommissionSavings)}
+                  </Badge>
+                </span>
+              )}
+              <Badge tone={anomalyCount > 0 ? 'negative' : 'positive'} size="sm" dot>
+                {anomalyCount > 0 ? `${anomalyCount} anomalía${anomalyCount === 1 ? '' : 's'}` : 'Todo cuadra'}
+              </Badge>
+            </div>
           )
         }
       >
@@ -779,6 +789,13 @@ const Gastos = () => {
                                   {r.window_from} a {r.window_to}
                                 </strong>{' '}
                                 (ambos días incluidos)
+                                {r.generated_excluded > 0 && (
+                                  <>
+                                    {' · '}
+                                    {money(r.generated_excluded)} en servicios sin comisión (
+                                    {money(r.commission_savings)} de comisión ahorrada)
+                                  </>
+                                )}
                               </div>
                               {r.services.length === 0 ? (
                                 <div
@@ -796,7 +813,7 @@ const Gastos = () => {
                                 >
                                   <thead>
                                     <tr>
-                                      {['Fecha', 'Hora', 'Servicio', 'Monto'].map((label, li) => (
+                                      {['Fecha', 'Hora', 'Servicio', 'Monto', 'Comisión'].map((label, li) => (
                                         <th
                                           key={label}
                                           style={{
@@ -816,13 +833,47 @@ const Gastos = () => {
                                   <tbody>
                                     {r.services.map((s, si) => (
                                       <tr key={si}>
-                                        <td style={{ padding: '4px 10px', color: 'var(--text-body)' }}>{s.date}</td>
-                                        <td style={{ padding: '4px 10px', color: 'var(--text-body)' }}>
+                                        <td
+                                          style={{
+                                            padding: '4px 10px',
+                                            color: s.commission_excluded ? 'var(--text-muted)' : 'var(--text-body)',
+                                          }}
+                                        >
+                                          {s.date}
+                                        </td>
+                                        <td
+                                          style={{
+                                            padding: '4px 10px',
+                                            color: s.commission_excluded ? 'var(--text-muted)' : 'var(--text-body)',
+                                          }}
+                                        >
                                           {s.time.slice(0, 5)}
                                         </td>
-                                        <td style={{ padding: '4px 10px', color: 'var(--text-body)' }}>{s.name}</td>
-                                        <td style={{ padding: '4px 10px', textAlign: 'right', fontWeight: 600 }}>
+                                        <td
+                                          style={{
+                                            padding: '4px 10px',
+                                            color: s.commission_excluded ? 'var(--text-muted)' : 'var(--text-body)',
+                                            textDecoration: s.commission_excluded ? 'line-through' : 'none',
+                                          }}
+                                        >
+                                          {s.name}
+                                        </td>
+                                        <td
+                                          style={{
+                                            padding: '4px 10px',
+                                            textAlign: 'right',
+                                            fontWeight: 600,
+                                            color: s.commission_excluded ? 'var(--text-muted)' : 'var(--text-body)',
+                                          }}
+                                        >
                                           {money(s.amount)}
+                                        </td>
+                                        <td style={{ padding: '4px 10px' }}>
+                                          {s.commission_excluded && (
+                                            <Badge tone="neutral" size="sm">
+                                              Sin comisión
+                                            </Badge>
+                                          )}
                                         </td>
                                       </tr>
                                     ))}
