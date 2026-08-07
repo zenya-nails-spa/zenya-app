@@ -56,6 +56,7 @@ import {
   Loader,
   Scissors,
   Palette,
+  Receipt,
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -116,6 +117,7 @@ const ICON_MAP = {
   Loader,
   Scissors,
   Palette,
+  Receipt,
 };
 
 export const getIcon = (name) => ICON_MAP[name] || null;
