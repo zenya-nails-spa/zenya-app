@@ -131,4 +131,10 @@ export const api = {
 
   // alerts
   alerts: () => get('/alerts'),
+
+  // custom reminders (Ajustes)
+  customReminders: (params) => get('/custom-reminders', params),
+  createCustomReminder: (body) => post('/custom-reminders', body),
+  updateCustomReminder: (id, body) => put(`/custom-reminders/${id}`, body),
+  dismissCustomReminder: (id) => post(`/custom-reminders/${id}/dismiss`),
 };
