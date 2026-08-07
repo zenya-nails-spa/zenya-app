@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Cake, Phone, Mail, Calendar, Wallet, Clock } from 'lucide-react';
+import { Cake, Phone, Mail, Calendar, Wallet, Clock, Ban, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApi } from '../hooks/use-api';
 import { applyTheme } from '../App';
@@ -305,8 +305,11 @@ const Settings = () => {
   };
 
   const { data: staffProfilesData } = useApi(() => api.staffProfiles(), []);
+  const { data: servicesData } = useApi(() => api.services(), []);
   const [staffProfiles, setStaffProfiles] = useState({});
   const [staffProfileStatus, setStaffProfileStatus] = useState({});
+  const [noCommissionStatus, setNoCommissionStatus] = useState({});
+  const [noCommissionSearch, setNoCommissionSearch] = useState({});
 
   useEffect(() => {
     if (staffProfilesData) {
@@ -322,6 +325,7 @@ const Settings = () => {
           commission_period_end_day: p.commission_period_end_day ?? '',
           commission_pay_day: p.commission_pay_day ?? '',
           commission_min_guarantee: p.commission_min_guarantee ?? '',
+          no_commission_services: p.no_commission_services ?? [],
         };
       });
       setStaffProfiles(next);
@@ -361,6 +365,41 @@ const Settings = () => {
       setTimeout(() => setStaffProfileStatus((s) => ({ ...s, [professionalId]: null })), 3000);
     } catch {
       setStaffProfileStatus((s) => ({ ...s, [professionalId]: 'error' }));
+    }
+  };
+
+  // Services she doesn't earn commission on (mirrors AgendaPro's own
+  // commission editor, e.g. a service configured at 0% there) — a separate
+  // save action since it's backed by its own endpoint/table, not a field on
+  // the flat profile row above.
+  const addNoCommissionService = (professionalId, serviceName) => {
+    setStaffProfiles((s) => {
+      const current = s[professionalId]?.no_commission_services ?? [];
+      if (current.includes(serviceName)) return s;
+      return { ...s, [professionalId]: { ...s[professionalId], no_commission_services: [...current, serviceName] } };
+    });
+    setNoCommissionSearch((s) => ({ ...s, [professionalId]: '' }));
+  };
+
+  const removeNoCommissionService = (professionalId, serviceName) => {
+    setStaffProfiles((s) => ({
+      ...s,
+      [professionalId]: {
+        ...s[professionalId],
+        no_commission_services: (s[professionalId]?.no_commission_services ?? []).filter((n) => n !== serviceName),
+      },
+    }));
+  };
+
+  const saveNoCommissionServices = async (professionalId) => {
+    setNoCommissionStatus((s) => ({ ...s, [professionalId]: 'saving' }));
+    try {
+      const names = staffProfiles[professionalId]?.no_commission_services ?? [];
+      await api.updateNoCommissionServices(professionalId, { service_names: names });
+      setNoCommissionStatus((s) => ({ ...s, [professionalId]: 'saved' }));
+      setTimeout(() => setNoCommissionStatus((s) => ({ ...s, [professionalId]: null })), 3000);
+    } catch {
+      setNoCommissionStatus((s) => ({ ...s, [professionalId]: 'error' }));
     }
   };
 
@@ -599,6 +638,18 @@ const Settings = () => {
                   const startDay = local.commission_period_start_day ?? '';
                   const endDay = local.commission_period_end_day ?? '';
                   const payDay = local.commission_pay_day ?? '';
+                  const noCommissionNames = local.no_commission_services ?? [];
+                  const noCommissionSearchText = noCommissionSearch[p.professional_id] ?? '';
+                  const noCommissionMatches = noCommissionSearchText.trim()
+                    ? (servicesData ?? [])
+                        .filter(
+                          (svc) =>
+                            svc.name &&
+                            !noCommissionNames.includes(svc.name) &&
+                            svc.name.toLowerCase().includes(noCommissionSearchText.trim().toLowerCase())
+                        )
+                        .slice(0, 8)
+                    : [];
                   return (
                     <div
                       key={p.professional_id}
@@ -748,6 +799,126 @@ const Settings = () => {
                         >
                           {periodSummary(startDay, endDay, payDay)}
                         </p>
+                      </div>
+
+                      <div
+                        style={{
+                          background: 'var(--surface-sunken)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: 16,
+                          marginTop: 16,
+                        }}
+                      >
+                        <SectionLabel icon={Ban}>Servicios sin comisión</SectionLabel>
+                        <p
+                          style={{
+                            fontFamily: 'var(--font-sans)',
+                            fontSize: 'var(--text-xs)',
+                            color: 'var(--text-secondary)',
+                            margin: '0 0 10px',
+                          }}
+                        >
+                          Igual que en AgendaPro → Administración → Comisiones: estos servicios no le generan comisión.
+                          Se restan de lo generado antes de calcular lo esperado en Gastos → Anomalías de pago de
+                          comisión.
+                        </p>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            placeholder="Buscar servicio para excluir de su comisión..."
+                            value={noCommissionSearchText}
+                            onChange={(e) =>
+                              setNoCommissionSearch((s) => ({ ...s, [p.professional_id]: e.target.value }))
+                            }
+                            style={inputStyle}
+                          />
+                          {noCommissionMatches.length > 0 && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                zIndex: 10,
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                marginTop: 4,
+                                background: 'var(--surface-card)',
+                                border: '1px solid var(--border-default)',
+                                borderRadius: 'var(--radius-sm)',
+                                boxShadow: 'var(--shadow-md)',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {noCommissionMatches.map((svc) => (
+                                <button
+                                  key={svc.id}
+                                  type="button"
+                                  onClick={() => addNoCommissionService(p.professional_id, svc.name)}
+                                  style={{
+                                    all: 'unset',
+                                    boxSizing: 'border-box',
+                                    display: 'block',
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    cursor: 'pointer',
+                                    fontFamily: 'var(--font-sans)',
+                                    fontSize: 'var(--text-sm)',
+                                    color: 'var(--text-body)',
+                                  }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--rose-50)')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                >
+                                  {svc.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 6,
+                            marginTop: noCommissionNames.length ? 10 : 0,
+                          }}
+                        >
+                          {noCommissionNames.map((name) => (
+                            <Badge key={name} tone="neutral" size="sm">
+                              {name}
+                              <button
+                                type="button"
+                                title="Quitar"
+                                onClick={() => removeNoCommissionService(p.professional_id, name)}
+                                style={{
+                                  all: 'unset',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  marginLeft: 2,
+                                }}
+                              >
+                                <X size={11} />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: 12,
+                            marginTop: 12,
+                          }}
+                        >
+                          <SaveStatus status={noCommissionStatus[p.professional_id]} />
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => saveNoCommissionServices(p.professional_id)}
+                            disabled={noCommissionStatus[p.professional_id] === 'saving'}
+                          >
+                            Guardar servicios sin comisión
+                          </Button>
+                        </div>
                       </div>
 
                       <div

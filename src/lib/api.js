@@ -99,6 +99,8 @@ export const api = {
   updateUserProfile: (body) => put('/me', body),
   staffProfiles: () => get('/staff-profiles/professionals'),
   updateStaffProfile: (professionalId, body) => put(`/staff-profiles/professionals/${professionalId}`, body),
+  updateNoCommissionServices: (professionalId, body) =>
+    put(`/staff-profiles/professionals/${professionalId}/no-commission-services`, body),
   sharedStaffProfiles: () => get('/staff-profiles/shared'),
   updateSharedStaffProfile: (name, body) => put(`/staff-profiles/shared/${encodeURIComponent(name)}`, body),
   receptionStaffProfiles: () => get('/staff-profiles/reception'),
