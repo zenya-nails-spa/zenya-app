@@ -7,6 +7,7 @@ import StatCard from '../components/widgets/stat-card';
 import Card from '../components/ui/card';
 import Donut from '../components/charts/donut';
 import BarChart from '../components/charts/bar-chart';
+import MultiLine from '../components/charts/multi-line';
 import DataTable from '../components/widgets/data-table';
 import Avatar from '../components/ui/avatar';
 import Badge from '../components/ui/badge';
@@ -22,6 +23,8 @@ import ClientDetailModal from '../components/widgets/client-detail-modal';
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
 const pct = (v) => (v != null ? Math.round(v * 100) + '%' : '—');
+
+const TREND_MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 const TABS = [
   { value: 'directorio', label: 'Directorio' },
@@ -201,6 +204,7 @@ const Clients = ({ dateRange }) => {
 
   const { data: profilesData } = useApi(() => api.clientProfiles(dateRange), deps);
   const { data: clvData } = useApi(() => api.clvSegments(dateRange), deps);
+  const { data: retentionTrendData } = useApi(() => api.retentionTrend(dateRange), deps);
 
   const visitsData = (stats?.visits_distribution ?? []).map((b) => ({
     label: b.label,
@@ -235,6 +239,22 @@ const Clients = ({ dateRange }) => {
       retencionHistoricaPct: retention?.historical_retention_rate ?? null,
     };
   }, [profilesData, retention]);
+
+  const retentionTrend = useMemo(() => {
+    const points = retentionTrendData ?? [];
+    const fmt = (d) => {
+      const [, m, day] = (d ?? '').split('-');
+      return m && day ? `${parseInt(day, 10)} ${TREND_MONTHS_ES[parseInt(m, 10) - 1]}` : d;
+    };
+    return {
+      labels: points.map((p) => fmt(p.date)),
+      series: [
+        { label: 'Activas', data: points.map((p) => p.active), color: 'var(--positive)' },
+        { label: 'En riesgo', data: points.map((p) => p.at_risk), color: 'var(--caution)', dashed: true },
+        { label: 'Perdidas', data: points.map((p) => p.churned), color: 'var(--negative)' },
+      ],
+    };
+  }, [retentionTrendData]);
 
   const filteredRetentionProfiles = useMemo(() => {
     let rows = retentionProfiles;
@@ -592,6 +612,59 @@ const Clients = ({ dateRange }) => {
               numeralStyle="sans"
             />
           </div>
+
+          <Card
+            eyebrow="Tendencia"
+            title="Activas vs. en riesgo vs. perdidas"
+            info="Para cada punto del periodo seleccionado, clasifica a todas las clientas según su última visita hasta esa fecha (mismos criterios que arriba: Activa < 45 días, En riesgo 45–89, Perdida 90+). Así puedes ver qué número se mueve más rápido: si las perdidas crecen más rápido de lo que las activas caen, es una señal de alerta temprana."
+          >
+            {retentionTrend.labels.length > 0 ? (
+              <MultiLine
+                series={retentionTrend.series}
+                labels={retentionTrend.labels}
+                height={240}
+                yFormat={(v) => String(v)}
+              />
+            ) : (
+              <div
+                style={{
+                  padding: '30px 0',
+                  textAlign: 'center',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-sm)',
+                }}
+              >
+                Sin datos para este periodo
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+              {retentionTrend.series.map((s) => (
+                <div
+                  key={s.label}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 'var(--text-xs)',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: s.color,
+                      display: 'inline-block',
+                    }}
+                  />
+                  {s.label}
+                </div>
+              ))}
+            </div>
+          </Card>
 
           <Card
             eyebrow="Riesgo de fuga"
