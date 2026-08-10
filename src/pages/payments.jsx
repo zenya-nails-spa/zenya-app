@@ -159,10 +159,28 @@ const Payments = ({ dateRange }) => {
 
   const pagination = usePagination(rows.length, 25, `${statusFilter}|${methodFilter}|${search}`);
 
-  // Sum of exactly what's in the "Monto" column across every filtered row
-  // (not just the current page) -- responds live to search/estado/método,
-  // unlike the KPI cards above which always reflect the whole period.
-  const filteredTotal = useMemo(() => rows.reduce((sum, r) => sum + (r.total_amount ?? 0), 0), [rows]);
+  // Sum of exactly what the filters mean, across every filtered row (not just
+  // the current page) -- responds live to search/estado/método, unlike the
+  // KPI cards above which always reflect the whole period. Two things the
+  // naive "sum of total_amount" got wrong:
+  //   1. Canceled tickets never count toward a total -- unless you've
+  //      filtered estado to "Canceladas" specifically to look at them.
+  //   2. Filtering by one método (or "Todos menos efectivo") on a split
+  //      ticket must only count that method's own transaction amount, not
+  //      the ticket's whole total -- otherwise a $300 cash + $200 card
+  //      ticket would add $500 to the "Efectivo" total instead of $300.
+  const filteredTotal = useMemo(
+    () =>
+      rows.reduce((sum, r) => {
+        if (r._status === 'canceled' && statusFilter !== 'canceled') return sum;
+        if (methodFilter === 'all' || methodFilter === 'split') return sum + (r.total_amount ?? 0);
+        const matching = (r.transactions ?? []).filter((t) =>
+          methodFilter === 'non_cash' ? t.payment_method !== 'cash' : t.payment_method === methodFilter
+        );
+        return sum + matching.reduce((s, t) => s + (t.total ?? 0), 0);
+      }, 0),
+    [rows, methodFilter, statusFilter]
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'zFade 0.3s var(--ease-out)' }}>
