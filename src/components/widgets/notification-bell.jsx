@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, Calendar, Palmtree, Clock3, AlarmClock } from 'lucide-react';
+import { Bell, Calendar, Palmtree, Clock3, AlarmClock, Receipt } from 'lucide-react';
 import { api } from '../../lib/api';
 
 const POLL_MS = 60000;
@@ -94,7 +94,8 @@ const NotificationBell = ({ onNavigate }) => {
     (alerts?.pending_reminders?.length ?? 0) +
       (alerts?.upcoming_vacations?.length ?? 0) +
       (alerts?.owed_hours?.length ?? 0) +
-      (alerts?.custom_reminders?.length ?? 0) >
+      (alerts?.custom_reminders?.length ?? 0) +
+      (alerts?.unpaid_bookings?.length ?? 0) >
     0;
 
   return (
@@ -221,6 +222,24 @@ const NotificationBell = ({ onNavigate }) => {
                         : `En ${r.days_until} días · ${r.due_date}`
                   }
                   onClick={() => goTo('settings')}
+                />
+              ))}
+            </>
+          )}
+
+          {alerts?.unpaid_bookings?.length > 0 && (
+            <>
+              <SectionLabel>Citas sin pago asociado</SectionLabel>
+              {alerts.unpaid_bookings.map((u) => (
+                <AlertRow
+                  key={`${u.client_id}-${u.start}`}
+                  icon={Receipt}
+                  iconColor="var(--negative)"
+                  title={u.client_name ?? 'Clienta sin nombre'}
+                  subtitle={`${u.services.length} servicio${u.services.length === 1 ? '' : 's'} · ${
+                    u.days_ago === 0 ? 'hoy' : u.days_ago === 1 ? 'ayer' : `hace ${u.days_ago} días`
+                  }`}
+                  onClick={() => goTo('appointments')}
                 />
               ))}
             </>
