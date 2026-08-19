@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Send, X } from 'lucide-react';
 import { api } from '../../lib/api';
+import { isAdmin } from '../../lib/auth';
 import { buildWhatsappUrl, TEST_RECIPIENTS } from '../../lib/whatsapp';
 import Card from '../ui/card';
 import Badge from '../ui/badge';
@@ -83,7 +84,10 @@ const ReminderCampaignPanel = ({
     // Auto-seed with the default text on first-ever load so the test-send
     // and edit controls (which need a real template to fill in) are there
     // right away, instead of forcing an explicit "Crear plantilla" step.
-    if (!current) {
+    // Skipped for non-admins -- their key can't create templates, and by
+    // the time a recepcionista account exists this category already has
+    // one anyway.
+    if (!current && isAdmin()) {
       current = await api.createWhatsappTemplate({
         name: defaultTemplateName,
         body: defaultTemplateBody,
@@ -91,7 +95,7 @@ const ReminderCampaignPanel = ({
       });
     }
     setTemplate(current);
-    setDraftBody(current.body);
+    setDraftBody(current?.body ?? defaultTemplateBody);
     setTemplateLoaded(true);
     return current;
   };
@@ -243,16 +247,18 @@ const ReminderCampaignPanel = ({
                   />
                 </>
               )}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={async () => {
-                  if (!templateLoaded) await loadTemplate();
-                  setEditing(true);
-                }}
-              >
-                {template ? 'Editar' : 'Crear plantilla'}
-              </Button>
+              {isAdmin() && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={async () => {
+                    if (!templateLoaded) await loadTemplate();
+                    setEditing(true);
+                  }}
+                >
+                  {template ? 'Editar' : 'Crear plantilla'}
+                </Button>
+              )}
             </div>
           )
         }
