@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { api } from '../lib/api';
+import { isAdmin } from '../lib/auth';
 import { useApi } from '../hooks/use-api';
 import StatCard from '../components/widgets/stat-card';
 import Card from '../components/ui/card';
@@ -46,13 +47,13 @@ function parseLocalDate(str) {
   return new Date(str + 'T12:00:00');
 }
 
-const APPT_COLS = [
+const APPT_COLS_BASE = [
   { key: 'time', label: 'Hora', nowrap: true },
   { key: 'service', label: 'Servicio' },
   { key: 'professional', label: 'Empleada' },
   { key: 'status', label: 'Estado' },
-  { key: 'total', label: 'Total', align: 'right' },
 ];
+const APPT_COLS_WITH_TOTAL = [...APPT_COLS_BASE, { key: 'total', label: 'Total', align: 'right' }];
 
 const MiniCalendar = ({ selectedDate, onSelect }) => {
   const today = new Date();
@@ -358,16 +359,18 @@ const Appointments = () => {
           caption={displayDate}
           icon="Calendar"
         />
-        <StatCard
-          label="Ingresos del día"
-          value={ticketsLoading ? '…' : money(totalRev)}
-          caption="citas con pago"
-          icon="DollarSign"
-        />
+        {isAdmin() && (
+          <StatCard
+            label="Ingresos del día"
+            value={ticketsLoading ? '…' : money(totalRev)}
+            caption="citas con pago"
+            icon="DollarSign"
+          />
+        )}
         <StatCard label="Pendientes" value={loading ? '…' : String(pending)} caption={`${paid} pagadas`} icon="Clock" />
       </div>
 
-      {!ticketsLoading && conflictingTickets.length > 0 && (
+      {isAdmin() && !ticketsLoading && conflictingTickets.length > 0 && (
         <div
           style={{
             display: 'flex',
@@ -425,12 +428,14 @@ const Appointments = () => {
             </div>
           ) : combinedRows.length ? (
             <DataTable
-              columns={APPT_COLS}
+              columns={isAdmin() ? APPT_COLS_WITH_TOTAL : APPT_COLS_BASE}
               rows={combinedRows}
               renderCell={(row, key) => {
                 if (key === 'service') {
                   const label = row.service.length > 46 ? row.service.slice(0, 46) + '…' : row.service;
-                  return row.isTicket ? (
+                  // The ticket detail modal is a money breakdown (line items +
+                  // total) -- not clickable for non-admins.
+                  return row.isTicket && isAdmin() ? (
                     <button
                       type="button"
                       className="z-client-name"

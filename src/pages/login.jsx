@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { api } from '../lib/api';
+import { AUTH_TOKEN_KEY } from '../lib/auth';
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -15,7 +16,7 @@ const Login = ({ onLogin }) => {
     setLoading(true);
     try {
       const res = await api.login(email, pass);
-      if (res?.token) localStorage.setItem('zenya-auth-token', res.token);
+      if (res?.token) localStorage.setItem(AUTH_TOKEN_KEY, res.token);
       onLogin && onLogin(res);
     } catch {
       setError(true);
@@ -79,7 +80,7 @@ const Login = ({ onLogin }) => {
           }}
         >
           <img
-            src="/zenya-mark-rose.png"
+            src={`${process.env.PUBLIC_URL}/zenya-mark-rose.png`}
             alt="Zenya"
             style={{ height: 52, width: 'auto', marginBottom: 12 }}
             onError={(e) => {

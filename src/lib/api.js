@@ -1,10 +1,21 @@
+import { AUTH_TOKEN_KEY } from './auth';
+
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
-const API_KEY = process.env.REACT_APP_API_KEY || 'dev-key';
+const DEFAULT_API_KEY = process.env.REACT_APP_API_KEY || 'dev-key';
+
+// The key actually sent depends on who logged in -- admin and recepcionista
+// get different tokens back from /auth/login (see Login/App.js), and the
+// backend scopes what the recepcionista's key can reach. Falls back to the
+// build-time key when nothing's stored yet (e.g. local dev without going
+// through the login screen).
+function apiKey() {
+  return localStorage.getItem(AUTH_TOKEN_KEY) || DEFAULT_API_KEY;
+}
 
 async function get(path, params = {}) {
   const url = new URL(`${BASE_URL}${path}`);
   Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), { headers: { 'X-API-Key': API_KEY } });
+  const res = await fetch(url.toString(), { headers: { 'X-API-Key': apiKey() } });
   if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
   return res.json();
 }
@@ -14,7 +25,7 @@ async function post(path, body, params) {
   if (params) Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, v));
   const res = await fetch(url.toString(), {
     method: 'POST',
-    headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+    headers: { 'X-API-Key': apiKey(), 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -36,7 +47,7 @@ async function put(path, body, params) {
   if (params) Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, v));
   const res = await fetch(url.toString(), {
     method: 'PUT',
-    headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+    headers: { 'X-API-Key': apiKey(), 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`API ${res.status}: ${path}`);

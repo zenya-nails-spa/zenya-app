@@ -41,7 +41,7 @@ const Sidebar = ({
           }}
         >
           <img
-            src="/zenya-mark-rose.png"
+            src={`${process.env.PUBLIC_URL}/zenya-mark-rose.png`}
             alt="Zenya"
             style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }}
           />

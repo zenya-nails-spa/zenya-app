@@ -3,6 +3,7 @@ import { PanelLeftClose, PanelLeftOpen, Menu, Sun, Moon } from 'lucide-react';
 
 import { api } from './lib/api';
 import { useApi } from './hooks/use-api';
+import { AUTH_TOKEN_KEY, AUTH_ROLE_KEY, getRole } from './lib/auth';
 import Sidebar from './components/layout/sidebar';
 import SectionTitle from './components/widgets/section-title';
 import DateRangePicker from './components/ui/date-range-picker';
@@ -105,9 +106,15 @@ export function applyTheme(t) {
   localStorage.setItem('zenya-theme', t);
 }
 
+// Recepcionista only ever sees Citas -- mirrors the backend's own scoping
+// (see zenya-api's receptionist allowlist middleware), this is just the UI
+// layer of the same rule, not the actual security boundary.
+const RECEPTIONIST_NAV_IDS = new Set(['appointments']);
+
 const App = () => {
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem('zenya-auth-token'));
-  const [active, setActive] = useState('overview');
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem(AUTH_TOKEN_KEY));
+  const [role, setRole] = useState(getRole);
+  const [active, setActive] = useState(() => (getRole() === 'receptionist' ? 'appointments' : 'overview'));
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -129,10 +136,12 @@ const App = () => {
 
   const { data: ownerData } = useApi(() => api.userProfile(), []);
 
+  const visibleNav = role === 'receptionist' ? NAV.filter((n) => RECEPTIONIST_NAV_IDS.has(n.id)) : NAV;
   const meta = PAGE_META[active] || PAGE_META.overview;
   const PageComponent = PAGE_MAP[active] || Overview;
 
   const navigate = (id) => {
+    if (role === 'receptionist' && !RECEPTIONIST_NAV_IDS.has(id)) return;
     if (id === active) return;
     setLoading(true);
     setTimeout(() => {
@@ -141,14 +150,23 @@ const App = () => {
     }, 480);
   };
 
+  const handleLoginSuccess = (res) => {
+    const nextRole = res?.role === 'receptionist' ? 'receptionist' : 'admin';
+    localStorage.setItem(AUTH_ROLE_KEY, nextRole);
+    setRole(nextRole);
+    setActive(nextRole === 'receptionist' ? 'appointments' : 'overview');
+    setAuthed(true);
+  };
+
   const handleLogout = () => {
-    localStorage.removeItem('zenya-auth-token');
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_ROLE_KEY);
     setAuthed(false);
     setActive('overview');
   };
 
   if (!authed) {
-    return <Login onLogin={() => setAuthed(true)} />;
+    return <Login onLogin={handleLoginSuccess} />;
   }
 
   return (
@@ -156,7 +174,7 @@ const App = () => {
       <Sidebar
         active={active}
         onNavigate={navigate}
-        items={NAV}
+        items={visibleNav}
         collapsed={collapsed}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
@@ -213,7 +231,7 @@ const App = () => {
               {!HIDE_RANGE.has(active) && (
                 <DateRangePicker value={dateRange} onChange={setDateRange} className="z-hide-sm" />
               )}
-              <NotificationBell onNavigate={navigate} />
+              {role !== 'receptionist' && <NotificationBell onNavigate={navigate} />}
               <IconButton
                 label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
                 variant="outline"

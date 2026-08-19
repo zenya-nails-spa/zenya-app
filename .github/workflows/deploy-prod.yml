@@ -23,6 +23,13 @@ jobs:
       - name: 🏗️ Build React App
         run: npm run build
 
+      - name: 📁 Nest build under /admin
+        run: |
+          mkdir -p admin_build/admin
+          mv build/* admin_build/admin/
+          rm -rf build
+          mv admin_build build
+
       - name: 🔥 Deploy to Firebase (PROD)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
