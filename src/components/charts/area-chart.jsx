@@ -48,7 +48,8 @@ const AreaChart = ({ data = [], compare = null, labels, yFormat, height = 200 })
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
         <XAxis
-          dataKey="label"
+          dataKey="_idx"
+          tickFormatter={(idx) => (labels ? labels[idx] : idx)}
           tick={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}
           axisLine={false}
           tickLine={false}
