@@ -19,6 +19,7 @@ import Pagination from '../components/ui/pagination';
 import { usePagination } from '../hooks/use-pagination';
 import ReactivationPanel from '../components/widgets/reactivation-panel';
 import ClientDetailModal from '../components/widgets/client-detail-modal';
+import ClientComplaintsPanel from '../components/widgets/client-complaints-panel';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const moneyK = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + Math.round(v));
@@ -31,6 +32,7 @@ const TABS = [
   { value: 'retencion', label: 'Retención' },
   { value: 'reactivacion', label: 'Reactivación' },
   { value: 'clv', label: 'CLV & Segmentos' },
+  { value: 'quejas', label: 'Quejas' },
 ];
 
 const ESTADO_RANK = { active: 0, activa: 0, at_risk: 1, en_riesgo: 1, churned: 2, perdida: 2, lost: 2 };
@@ -172,9 +174,14 @@ const Clients = ({ dateRange }) => {
   const [retentionSortedRows, setRetentionSortedRows] = useState([]);
   const [clvSegmentFilter, setClvSegmentFilter] = useState(null);
   const [selectedClientId, setSelectedClientId] = useState(null);
+  const [flaggedVersion, setFlaggedVersion] = useState(0);
   const deps = [dateRange.from_date, dateRange.to_date];
 
   const { data: kpis } = useApi(() => api.kpis(dateRange), deps);
+  // "Con queja" tag in the directory -- independent of the selected period,
+  // refetched whenever the Quejas tab adds/edits/voids a complaint.
+  const { data: flaggedData } = useApi(() => api.clientComplaintsFlaggedIds(), [flaggedVersion]);
+  const flaggedClientIds = new Set(flaggedData?.client_ids ?? []);
   const { data: retention } = useApi(() => api.clientRetention(dateRange), deps);
   const { data: stats } = useApi(() => api.clientStats(dateRange), deps);
 
@@ -515,6 +522,11 @@ const Clients = ({ dateRange }) => {
                         >
                           {row.name}
                         </button>
+                        {flaggedClientIds.has(row.id) && (
+                          <Badge tone="caution" size="sm" dot>
+                            Con queja
+                          </Badge>
+                        )}
                       </div>
                     );
                   return row[key] ?? '—';
@@ -1009,6 +1021,11 @@ const Clients = ({ dateRange }) => {
             )}
           </Card>
         </>
+      )}
+
+      {/* ── QUEJAS TAB ── */}
+      {tab === 'quejas' && (
+        <ClientComplaintsPanel dateRange={dateRange} onChangeFlagged={() => setFlaggedVersion((v) => v + 1)} />
       )}
 
       <ClientDetailModal clientId={selectedClientId} onClose={() => setSelectedClientId(null)} />
