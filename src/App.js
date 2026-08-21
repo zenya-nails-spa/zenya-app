@@ -80,6 +80,15 @@ function computePrevRange(from_date, to_date) {
   };
 }
 
+function computeYoyRange(from_date, to_date) {
+  const shiftYear = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().slice(0, 10);
+  };
+  return { from_date: shiftYear(from_date), to_date: shiftYear(to_date) };
+}
+
 const LoadingScreen = () => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     <div className="z-kpi-grid">
@@ -123,6 +132,10 @@ const App = () => {
 
   const prevDateRange = useMemo(
     () => computePrevRange(dateRange.from_date, dateRange.to_date),
+    [dateRange.from_date, dateRange.to_date]
+  );
+  const yoyDateRange = useMemo(
+    () => computeYoyRange(dateRange.from_date, dateRange.to_date),
     [dateRange.from_date, dateRange.to_date]
   );
 
@@ -242,7 +255,11 @@ const App = () => {
             </div>
           </div>
 
-          {loading ? <LoadingScreen /> : <PageComponent dateRange={dateRange} prevDateRange={prevDateRange} />}
+          {loading ? (
+            <LoadingScreen />
+          ) : (
+            <PageComponent dateRange={dateRange} prevDateRange={prevDateRange} yoyDateRange={yoyDateRange} />
+          )}
         </div>
       </main>
     </div>
