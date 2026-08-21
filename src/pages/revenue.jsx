@@ -32,15 +32,17 @@ const COLUMNS = [
   { key: 'appts', label: 'Ventas', align: 'right' },
 ];
 
-const Revenue = ({ dateRange, prevDateRange }) => {
+const Revenue = ({ dateRange, prevDateRange, yoyDateRange }) => {
   const [cmp, setCmp] = useState('prev');
   const deps = [dateRange.from_date, dateRange.to_date];
   const prevDeps = [prevDateRange.from_date, prevDateRange.to_date];
+  const yoyDeps = [yoyDateRange.from_date, yoyDateRange.to_date];
 
   const { data: kpis } = useApi(() => api.kpis(dateRange), deps);
   const { data: kpisPrev } = useApi(() => api.kpis(prevDateRange), prevDeps);
   const { data: revByDay } = useApi(() => api.revenueByDay(dateRange), deps);
   const { data: revByDayPrev } = useApi(() => api.revenueByDay(prevDateRange), prevDeps);
+  const { data: revByDayYoy } = useApi(() => api.revenueByDay(yoyDateRange), yoyDeps);
   const { data: paymentsData } = useApi(() => api.paymentMethodsBreakdown(dateRange), deps);
   const { data: categoriesData } = useApi(() => api.serviceCategories(dateRange), deps);
   const { data: lowDemandData } = useApi(() => api.lowDemandServices(dateRange), deps);
@@ -56,7 +58,10 @@ const Revenue = ({ dateRange, prevDateRange }) => {
     revenuePerAppt && revenuePerApptPrev ? ((revenuePerAppt - revenuePerApptPrev) / revenuePerApptPrev) * 100 : null;
 
   const chartData = useMemo(() => revByDay?.map((r) => r.revenue) ?? [], [revByDay]);
-  const chartCompare = useMemo(() => revByDayPrev?.map((r) => r.revenue) ?? [], [revByDayPrev]);
+  const chartCompare = useMemo(() => {
+    const source = cmp === 'yoy' ? revByDayYoy : revByDayPrev;
+    return source?.map((r) => r.revenue) ?? [];
+  }, [cmp, revByDayPrev, revByDayYoy]);
   const chartLabels = useMemo(
     () => revByDay?.map((r) => `Día ${new Date(r.date + 'T00:00:00').getDate()}`) ?? [],
     [revByDay]
