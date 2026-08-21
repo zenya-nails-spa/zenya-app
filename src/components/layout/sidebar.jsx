@@ -10,9 +10,17 @@ const Sidebar = ({
   mobileOpen = false,
   onCloseMobile,
   owner,
+  role,
   onLogout,
 }) => {
-  const ownerName = [owner?.first_name, owner?.last_name].filter(Boolean).join(' ') || 'Dueña';
+  // /me always returns the business owner's profile (it's business-settings
+  // data, not a per-session identity) -- for the recepcionista login this
+  // would misleadingly show the owner's name, so use a fixed label instead.
+  const isReceptionist = role === 'receptionist';
+  const displayName = isReceptionist
+    ? 'Recepción'
+    : [owner?.first_name, owner?.last_name].filter(Boolean).join(' ') || 'Dueña';
+  const displayRole = isReceptionist ? 'Recepcionista' : 'Dueña';
   return (
     <>
       <aside
@@ -161,7 +169,7 @@ const Sidebar = ({
             justifyContent: collapsed ? 'center' : 'flex-start',
           }}
         >
-          <Avatar name={ownerName} size="sm" tone="rose" />
+          <Avatar name={displayName} size="sm" tone="rose" />
           {!collapsed && (
             <>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -176,10 +184,10 @@ const Sidebar = ({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {ownerName}
+                  {displayName}
                 </div>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  Dueña
+                  {displayRole}
                 </div>
               </div>
               <button
