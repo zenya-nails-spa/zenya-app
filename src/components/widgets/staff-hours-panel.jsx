@@ -85,7 +85,7 @@ const Stat = ({ label, value, highlight }) => (
   </div>
 );
 
-const BalanceCard = ({ summary, active, onSelect }) => {
+const BalanceCard = ({ summary, active, revealed, onSelect }) => {
   const name = [summary.first_name, summary.last_name].filter(Boolean).join(' ').trim();
   const owed = summary.net_minutes > 0;
   const owes = summary.net_minutes < 0;
@@ -103,21 +103,33 @@ const BalanceCard = ({ summary, active, onSelect }) => {
     statusText = `Debe ${fmtDuration(summary.net_minutes)}`;
   }
 
+  const cardStyle = {
+    textAlign: 'left',
+    cursor: 'pointer',
+    padding: 16,
+    borderRadius: 'var(--radius-lg)',
+    border: active ? '2px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
+    background: 'var(--surface-card)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  };
+
+  // Amounts owed/owed-to and vacation balances are confidential per person --
+  // this card doubles as a WhatsApp screenshot source, so anyone not
+  // currently selected shows only their name until clicked.
+  if (!revealed) {
+    return (
+      <button onClick={onSelect} style={cardStyle}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 'var(--fw-semibold)', color: 'var(--text-heading)' }}>
+          {name}
+        </div>
+      </button>
+    );
+  }
+
   return (
-    <button
-      onClick={onSelect}
-      style={{
-        textAlign: 'left',
-        cursor: 'pointer',
-        padding: 16,
-        borderRadius: 'var(--radius-lg)',
-        border: active ? '2px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
-        background: 'var(--surface-card)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}
-    >
+    <button onClick={onSelect} style={cardStyle}>
       <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 'var(--fw-semibold)', color: 'var(--text-heading)' }}>
         {name}
       </div>
@@ -588,6 +600,7 @@ const StaffHoursPanel = () => {
             key={s.professional_id}
             summary={s}
             active={s.professional_id === selectedId}
+            revealed={!selectedId || s.professional_id === selectedId}
             onSelect={() => setSelectedId(s.professional_id)}
           />
         ))}
