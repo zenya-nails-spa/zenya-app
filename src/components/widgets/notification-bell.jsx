@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, Calendar, Palmtree, Clock3, AlarmClock, Receipt } from 'lucide-react';
+import { Bell, Calendar, Palmtree, Clock3, AlarmClock, Receipt, Cake } from 'lucide-react';
 import { api } from '../../lib/api';
 
 const POLL_MS = 60000;
@@ -95,7 +95,8 @@ const NotificationBell = ({ onNavigate }) => {
       (alerts?.upcoming_vacations?.length ?? 0) +
       (alerts?.owed_hours?.length ?? 0) +
       (alerts?.custom_reminders?.length ?? 0) +
-      (alerts?.unpaid_bookings?.length ?? 0) >
+      (alerts?.unpaid_bookings?.length ?? 0) +
+      (alerts?.upcoming_birthdays?.length ?? 0) >
     0;
 
   return (
@@ -260,6 +261,28 @@ const NotificationBell = ({ onNavigate }) => {
                       : v.days_until === 1
                         ? 'Es mañana'
                         : `En ${v.days_until} días · ${v.vacation_date}`
+                  }
+                  onClick={() => goTo('staff')}
+                />
+              ))}
+            </>
+          )}
+
+          {alerts?.upcoming_birthdays?.length > 0 && (
+            <>
+              <SectionLabel>Cumpleaños próximos</SectionLabel>
+              {alerts.upcoming_birthdays.map((b) => (
+                <AlertRow
+                  key={`${b.name}-${b.next_birthday}`}
+                  icon={Cake}
+                  iconColor="var(--brand-primary)"
+                  title={b.name}
+                  subtitle={
+                    b.days_until === 0
+                      ? 'Es hoy'
+                      : b.days_until === 1
+                        ? 'Es mañana'
+                        : `En ${b.days_until} días · ${b.next_birthday}`
                   }
                   onClick={() => goTo('staff')}
                 />
