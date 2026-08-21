@@ -192,6 +192,7 @@ const App = () => {
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
         owner={ownerData}
+        role={role}
         onLogout={handleLogout}
       />
 
