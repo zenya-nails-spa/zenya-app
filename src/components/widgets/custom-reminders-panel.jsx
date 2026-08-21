@@ -48,6 +48,7 @@ function fmtDate(iso) {
 
 const TYPE_OPTIONS = [
   { value: 'monthly', label: 'Cada mes, el día...' },
+  { value: 'interval', label: 'Cada N días' },
   { value: 'one_time', label: 'Fecha única' },
 ];
 
@@ -79,6 +80,7 @@ const CustomRemindersPanel = () => {
   const [reminderType, setReminderType] = useState('monthly');
   const [dayOfMonth, setDayOfMonth] = useState('1');
   const [reminderDate, setReminderDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [intervalDays, setIntervalDays] = useState('7');
   const [daysBefore, setDaysBefore] = useState('3');
   const [saving, setSaving] = useState(false);
 
@@ -87,6 +89,7 @@ const CustomRemindersPanel = () => {
     setReminderType('monthly');
     setDayOfMonth('1');
     setReminderDate(new Date().toISOString().slice(0, 10));
+    setIntervalDays('7');
     setDaysBefore('3');
     setEditingId(null);
   }, []);
@@ -97,6 +100,7 @@ const CustomRemindersPanel = () => {
     setReminderType(row.reminder_type);
     setDayOfMonth(String(row.day_of_month ?? 1));
     setReminderDate(row.reminder_date ?? new Date().toISOString().slice(0, 10));
+    setIntervalDays(String(row.interval_days ?? 7));
     setDaysBefore(String(row.days_before));
     setShowForm(true);
   };
@@ -114,7 +118,8 @@ const CustomRemindersPanel = () => {
         label: label.trim(),
         reminder_type: reminderType,
         day_of_month: reminderType === 'monthly' ? Number(dayOfMonth) : null,
-        reminder_date: reminderType === 'one_time' ? reminderDate : null,
+        reminder_date: reminderType === 'one_time' || reminderType === 'interval' ? reminderDate : null,
+        interval_days: reminderType === 'interval' ? Number(intervalDays) : null,
         days_before: Number(daysBefore) || 0,
       };
       if (editingId) {
@@ -188,7 +193,7 @@ const CustomRemindersPanel = () => {
             />
           </label>
           <Select label="Repetición" value={reminderType} onChange={setReminderType} size="sm" options={TYPE_OPTIONS} />
-          {reminderType === 'monthly' ? (
+          {reminderType === 'monthly' && (
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={labelStyle}>Día del mes</span>
               <input
@@ -200,7 +205,8 @@ const CustomRemindersPanel = () => {
                 style={{ ...inputStyle, width: 70 }}
               />
             </label>
-          ) : (
+          )}
+          {reminderType === 'one_time' && (
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={labelStyle}>Fecha</span>
               <input
@@ -210,6 +216,29 @@ const CustomRemindersPanel = () => {
                 style={inputStyle}
               />
             </label>
+          )}
+          {reminderType === 'interval' && (
+            <>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={labelStyle}>Fecha de inicio</span>
+                <input
+                  type="date"
+                  value={reminderDate}
+                  onChange={(e) => setReminderDate(e.target.value)}
+                  style={inputStyle}
+                />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={labelStyle}>Cada cuántos días</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={intervalDays}
+                  onChange={(e) => setIntervalDays(e.target.value)}
+                  style={{ ...inputStyle, width: 70 }}
+                />
+              </label>
+            </>
           )}
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={labelStyle}>Avisar desde (días antes)</span>
@@ -236,10 +265,12 @@ const CustomRemindersPanel = () => {
           renderCell={(row, key) => {
             if (key === 'label')
               return <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{row.label}</span>;
-            if (key === 'schedule')
-              return row.reminder_type === 'monthly'
-                ? `Día ${row.day_of_month} de cada mes`
-                : `${fmtDate(row.reminder_date)} (una vez)`;
+            if (key === 'schedule') {
+              if (row.reminder_type === 'monthly') return `Día ${row.day_of_month} de cada mes`;
+              if (row.reminder_type === 'interval')
+                return `Cada ${row.interval_days} día${row.interval_days === 1 ? '' : 's'} desde ${fmtDate(row.reminder_date)}`;
+              return `${fmtDate(row.reminder_date)} (una vez)`;
+            }
             if (key === 'next_due_date') return fmtDate(row.next_due_date);
             if (key === 'status') {
               if (row.is_pending) return <Badge tone="caution">Mostrando ahora</Badge>;
