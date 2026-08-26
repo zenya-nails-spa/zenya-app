@@ -1,0 +1,11 @@
+<!doctype html>
+<!--
+  Never actually served -- the rewrites in firebase.json are exhaustive
+  (/admin/** and ** both route to Cloud Run services). This file only
+  exists because Firebase Hosting's schema requires a non-empty "public"
+  dir. IMPORTANT: must not be named index.html -- Firebase Hosting serves
+  an exact static file match *before* evaluating rewrites, so an
+  index.html here would silently shadow the "**" rewrite for "/" (this
+  happened once; caught and fixed live).
+-->
+<html><body></body></html>
