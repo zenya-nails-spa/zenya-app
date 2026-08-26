@@ -1,16 +1,26 @@
 {
-    "hosting": {
-      "public": "build",
-      "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-      ],
-      "rewrites": [
-        {
-          "source": "/admin/**",
-          "destination": "/admin/index.html"
+  "hosting": {
+    "public": "public-router",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/admin/**",
+        "run": {
+          "serviceId": "zenya-app-stage",
+          "region": "us-central1"
         }
-      ]
-    }
+      },
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "zenya-landing-stage",
+          "region": "us-central1"
+        }
+      }
+    ]
   }
+}
