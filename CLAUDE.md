@@ -2,12 +2,13 @@
 
 ## Project overview
 
-Zenya Nail Spa — salon management app for a nail/spa business in Puebla, Mexico. Four repos, all under the `zenya-nails-spa` GitHub org:
+Zenya Nail Spa — salon management app for a nail/spa business in Puebla, Mexico. Five repos, all under the `zenya-nails-spa` GitHub org:
 
 - **`zenya-api`** — FastAPI backend, MySQL via SQLAlchemy, deployed to Cloud Run.
-- **`zenya-app`** (this repo) — React frontend (Create React App), deployed to Firebase Hosting.
+- **`zenya-app`** (this repo) — React frontend (Create React App), the internal admin dashboard, deployed at `/admin` on shared domains.
 - **`zenya-ingestor`** — Google Cloud Functions that sync data from AgendaPro (the salon's booking/POS system, no useful export API of its own) into MySQL. This app never talks to AgendaPro or MySQL directly — everything goes through `zenya-api`.
 - **`mysql-schema-migrations`** — Liquibase changelogs, the single source of truth for schema.
+- **`zenya-landing`** — public marketing/sales site for clients. Completely separate app (no login, no `zenya-api` dependency, own repo/CI). On stage it shares a domain with this repo — see "How stage.zenya.com.mx is actually served" below.
 
 GCP project `zenya-app-476bc`, region `us-central1`. Cloud Run (API) + Firebase Hosting (this repo) + Cloud Functions (ingestor) + Cloud SQL. Environments: `stage` and `prod`, each with its own Cloud Run service / Firebase target / Cloud SQL database, mirrored by the `stage`/`master` git branches (note: `master`, not `main`, is this repo's prod branch).
 
@@ -61,6 +62,23 @@ When killing a background dev server process, target it by port (`lsof -ti :<por
 9. Verify against the live Firebase-hosted URL, not just "the Action succeeded."
 
 Same flow for prod, base branch **`master`**, after `stage` has been confirmed working.
+
+## How stage.zenya.com.mx is actually served (read before touching firebase.json/deploy-stage.yml)
+
+`stage.zenya.com.mx` used to be this repo's alone (static Hosting, `/admin` only, root 404s). It's now shared with `zenya-landing`: a Firebase Hosting custom domain can only belong to one site, and there's no native way to split static content from two independently-deployed sites by path — so **this repo's `firebase.json` is a pure router, not a static site config anymore**:
+
+```json
+"rewrites": [
+  { "source": "/admin/**", "run": { "serviceId": "zenya-app-stage", "region": "us-central1" } },
+  { "source": "**", "run": { "serviceId": "zenya-landing-stage", "region": "us-central1" } }
+]
+```
+
+`deploy-stage.yml` now builds `Dockerfile` (nginx serving the existing `/admin`-nested `build/`, via the same "nest build under /admin" step as before — that part is unchanged), pushes it to Cloud Run (`zenya-app-stage`, in project **`zenya-nails-spa-stage`**, not `zenya-app-476bc` where `zenya-api` runs — a Hosting rewrite's `run` target must be in the same project as the Hosting site), *then* deploys the router `firebase.json`. `zenya-landing`'s own repo/CI does the exact same thing independently for its own service — **neither repo's deploy ever touches the other's files**, that's the entire point of this design.
+
+`public-router/` is a placeholder dir Firebase's schema requires even though nothing in it is ever meant to be served (the rewrites are exhaustive). **It must never contain a file literally named `index.html`** — Firebase Hosting resolves an exact static file match before it evaluates rewrites, so an `index.html` there silently shadows the `**` rewrite for `/` (hit this live once, fixed by renaming to `_placeholder.html`).
+
+Prod (`zenya.com.mx/admin`) is **not** set up this way — still plain static Hosting, root unclaimed. Don't assume this pattern is mirrored in prod until someone actually builds it there.
 
 ## Gotchas
 
