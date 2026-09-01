@@ -23,22 +23,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: 📦 Install Dependencies
-        run: npm install
-
-      - name: 🏗️ Build React App
-        run: npm run build
-        env:
-          REACT_APP_API_URL: https://api-stage.zenya.com.mx
-          REACT_APP_API_KEY: zenya-api-prod-2026
-
-      - name: 📁 Nest build under /admin
-        run: |
-          mkdir -p admin_build/admin
-          mv build/* admin_build/admin/
-          rm -rf build
-          mv admin_build build
-
       - name: Authenticate with GCP
         uses: google-github-actions/auth@v2
         with:
@@ -51,7 +35,11 @@ jobs:
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Build Docker image
-        run: docker build -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+        run: |
+          docker build \
+            --build-arg REACT_APP_API_URL=https://api-stage.zenya.com.mx \
+            --build-arg REACT_APP_API_KEY=zenya-api-prod-2026 \
+            -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
 
       - name: Push Docker image
         run: |
