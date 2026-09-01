@@ -18,6 +18,7 @@ import Payments from './pages/payments';
 import Services from './pages/services';
 import Staff from './pages/staff';
 import Clients from './pages/clients';
+import ClientComplaintsOnly from './pages/client-complaints-only';
 import Appointments from './pages/appointments';
 import Gastos from './pages/gastos';
 import SettingsPage from './pages/settings';
@@ -115,10 +116,11 @@ export function applyTheme(t) {
   localStorage.setItem('zenya-theme', t);
 }
 
-// Recepcionista only ever sees Citas -- mirrors the backend's own scoping
-// (see zenya-api's receptionist allowlist middleware), this is just the UI
-// layer of the same rule, not the actual security boundary.
-const RECEPTIONIST_NAV_IDS = new Set(['appointments']);
+// Recepcionista sees Citas plus a Quejas-only view of Clientas -- mirrors
+// the backend's own scoping (see zenya-api's receptionist allowlist
+// middleware), this is just the UI layer of the same rule, not the actual
+// security boundary.
+const RECEPTIONIST_NAV_IDS = new Set(['appointments', 'clients']);
 
 const App = () => {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem(AUTH_TOKEN_KEY));
@@ -150,8 +152,11 @@ const App = () => {
   const { data: ownerData } = useApi(() => api.userProfile(), []);
 
   const visibleNav = role === 'receptionist' ? NAV.filter((n) => RECEPTIONIST_NAV_IDS.has(n.id)) : NAV;
-  const meta = PAGE_META[active] || PAGE_META.overview;
-  const PageComponent = PAGE_MAP[active] || Overview;
+  const isReceptionistClients = role === 'receptionist' && active === 'clients';
+  const meta = isReceptionistClients
+    ? { eyebrow: 'Clientas', title: 'Quejas', subtitle: 'Registro y seguimiento de quejas de clientas' }
+    : PAGE_META[active] || PAGE_META.overview;
+  const PageComponent = isReceptionistClients ? ClientComplaintsOnly : PAGE_MAP[active] || Overview;
 
   const navigate = (id) => {
     if (role === 'receptionist' && !RECEPTIONIST_NAV_IDS.has(id)) return;
