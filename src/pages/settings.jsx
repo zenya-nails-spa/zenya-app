@@ -425,17 +425,28 @@ const Settings = () => {
     }
   };
 
-  const { data: sharedStaffData } = useApi(() => api.sharedStaffProfiles(), []);
+  const [sharedRefreshKey, setSharedRefreshKey] = useState(0);
+  const { data: sharedStaffData } = useApi(() => api.sharedStaffProfiles(), [sharedRefreshKey]);
   const [sharedStaff, setSharedStaff] = useState({});
   const [sharedStaffStatus, setSharedStaffStatus] = useState({});
+  const [sharedKeywords, setSharedKeywords] = useState({});
+  const [sharedKeywordStatus, setSharedKeywordStatus] = useState({});
+  const [newSharedName, setNewSharedName] = useState('');
+  const [newSharedProviderId, setNewSharedProviderId] = useState('550532');
+  const [newSharedKeywords, setNewSharedKeywords] = useState('');
+  const [addingSharedKeyword, setAddingSharedKeyword] = useState(false);
+  const [addSharedError, setAddSharedError] = useState(null);
 
   useEffect(() => {
     if (sharedStaffData) {
-      const next = {};
+      const nextStaff = {};
+      const nextKeywords = {};
       sharedStaffData.forEach((p) => {
-        next[p.name] = { commission_pct: p.commission_pct ?? '', birth_date: p.birth_date ?? '' };
+        nextStaff[p.name] = { commission_pct: p.commission_pct ?? '', birth_date: p.birth_date ?? '' };
+        nextKeywords[`${p.provider_id}-${p.name}`] = p.keywords ?? '';
       });
-      setSharedStaff(next);
+      setSharedStaff(nextStaff);
+      setSharedKeywords(nextKeywords);
     }
   }, [sharedStaffData]);
 
@@ -455,6 +466,47 @@ const Settings = () => {
       setTimeout(() => setSharedStaffStatus((s) => ({ ...s, [name]: null })), 3000);
     } catch {
       setSharedStaffStatus((s) => ({ ...s, [name]: 'error' }));
+    }
+  };
+
+  const saveSharedKeywords = async (providerId, name) => {
+    const key = `${providerId}-${name}`;
+    setSharedKeywordStatus((s) => ({ ...s, [key]: 'saving' }));
+    try {
+      await api.updateSharedProviderKeyword(providerId, name, { keywords: sharedKeywords[key] || '' });
+      setSharedKeywordStatus((s) => ({ ...s, [key]: 'saved' }));
+      setTimeout(() => setSharedKeywordStatus((s) => ({ ...s, [key]: null })), 3000);
+    } catch {
+      setSharedKeywordStatus((s) => ({ ...s, [key]: 'error' }));
+    }
+  };
+
+  const removeSharedKeyword = async (providerId, name) => {
+    const key = `${providerId}-${name}`;
+    setSharedKeywordStatus((s) => ({ ...s, [key]: 'saving' }));
+    try {
+      await api.updateSharedProviderKeyword(providerId, name, { active: false });
+      setSharedRefreshKey((k) => k + 1);
+    } catch {
+      setSharedKeywordStatus((s) => ({ ...s, [key]: 'error' }));
+    }
+  };
+
+  const addSharedKeyword = async () => {
+    const name = newSharedName.trim();
+    const keywords = newSharedKeywords.trim();
+    if (!name || !keywords) return;
+    setAddingSharedKeyword(true);
+    setAddSharedError(null);
+    try {
+      await api.addSharedProviderKeyword(Number(newSharedProviderId), name, keywords);
+      setNewSharedName('');
+      setNewSharedKeywords('');
+      setSharedRefreshKey((k) => k + 1);
+    } catch (e) {
+      setAddSharedError(e.message || 'No se pudo agregar');
+    } finally {
+      setAddingSharedKeyword(false);
     }
   };
 
@@ -1034,8 +1086,53 @@ const Settings = () => {
           <Card
             eyebrow="Lashes y Cejas · Cosmetología"
             title="Comisión por colaboradora"
-            info="Comparten una cuenta de AgendaPro, así que solo se les puede configurar comisión y fecha de nacimiento — no tienen perfil completo."
+            info="Comparten una cuenta de AgendaPro — a cada una se le identifica por palabras clave en la nota de la cita (ej. 'Atiende Chio'). Agrega o quita personas conforme cambie el equipo."
           >
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+              <div style={{ width: 160 }}>
+                <Select
+                  label="Cuenta compartida"
+                  value={newSharedProviderId}
+                  onChange={setNewSharedProviderId}
+                  options={[
+                    { value: '550532', label: 'Lashes y Cejas' },
+                    { value: '542418', label: 'Cosmetología' },
+                  ]}
+                />
+              </div>
+              <div style={{ width: 160 }}>
+                <Field label="Nombre" value={newSharedName} onChange={setNewSharedName} />
+              </div>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <Field
+                  label="Palabras clave (separadas por coma)"
+                  value={newSharedKeywords}
+                  onChange={setNewSharedKeywords}
+                />
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                iconLeft={Plus}
+                onClick={addSharedKeyword}
+                disabled={addingSharedKeyword || !newSharedName.trim() || !newSharedKeywords.trim()}
+              >
+                {addingSharedKeyword ? 'Agregando…' : 'Agregar'}
+              </Button>
+            </div>
+            {addSharedError && (
+              <div
+                style={{
+                  color: 'var(--negative)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-xs)',
+                  marginBottom: 12,
+                }}
+              >
+                {addSharedError}
+              </div>
+            )}
+
             {(sharedStaffData ?? []).length === 0 ? (
               <div
                 style={{
@@ -1046,67 +1143,97 @@ const Settings = () => {
                   fontSize: 'var(--text-sm)',
                 }}
               >
-                Cargando…
+                Sin colaboradoras compartidas registradas.
               </div>
             ) : (
-              sharedStaffData.map((p, i) => (
-                <div
-                  key={p.name}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                    gap: 12,
-                    padding: '12px 0',
-                    borderBottom: i < sharedStaffData.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, height: 38 }}>
-                    <Avatar name={p.name} size="sm" tone={p.category === 'Lashes y Cejas' ? 'lavender' : 'rose'} />
-                    <div>
-                      <div
-                        style={{
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 'var(--text-sm)',
-                          fontWeight: 'var(--fw-medium)',
-                          color: 'var(--text-heading)',
-                        }}
-                      >
-                        {p.name}
+              sharedStaffData.map((p, i) => {
+                const key = `${p.provider_id}-${p.name}`;
+                return (
+                  <div
+                    key={key}
+                    style={{
+                      padding: '12px 0',
+                      borderBottom: i < sharedStaffData.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, height: 38 }}>
+                        <Avatar name={p.name} size="sm" tone={p.category === 'Lashes y Cejas' ? 'lavender' : 'rose'} />
+                        <div>
+                          <div
+                            style={{
+                              fontFamily: 'var(--font-sans)',
+                              fontSize: 'var(--text-sm)',
+                              fontWeight: 'var(--fw-medium)',
+                              color: 'var(--text-heading)',
+                            }}
+                          >
+                            {p.name}
+                          </div>
+                          <Badge tone={p.category === 'Lashes y Cejas' ? 'lavender' : 'rose'} size="sm">
+                            {p.category}
+                          </Badge>
+                        </div>
                       </div>
-                      <Badge tone={p.category === 'Lashes y Cejas' ? 'lavender' : 'rose'} size="sm">
-                        {p.category}
-                      </Badge>
+                      <div style={{ width: 170 }}>
+                        <Field
+                          label="Fecha de nacimiento"
+                          type="date"
+                          icon={Cake}
+                          value={sharedStaff[p.name]?.birth_date ?? ''}
+                          onChange={(v) => setSharedStaffField(p.name, 'birth_date', v)}
+                        />
+                      </div>
+                      <div style={{ width: 110 }}>
+                        <Field
+                          label="Comisión"
+                          type="number"
+                          suffix="%"
+                          value={sharedStaff[p.name]?.commission_pct ?? ''}
+                          onChange={(v) => setSharedStaffField(p.name, 'commission_pct', v)}
+                        />
+                      </div>
+                      <SaveStatus status={sharedStaffStatus[p.name]} />
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => saveSharedStaff(p.name)}
+                        disabled={sharedStaffStatus[p.name] === 'saving'}
+                      >
+                        Guardar
+                      </Button>
+                      <IconButton
+                        icon={X}
+                        title="Quitar de esta cuenta compartida"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeSharedKeyword(p.provider_id, p.name)}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, paddingLeft: 50 }}>
+                      <div style={{ flex: 1, maxWidth: 420 }}>
+                        <Field
+                          label="Palabras clave en la nota de la cita"
+                          value={sharedKeywords[key] ?? ''}
+                          onChange={(v) => setSharedKeywords((s) => ({ ...s, [key]: v }))}
+                        />
+                      </div>
+                      <SaveStatus status={sharedKeywordStatus[key]} />
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => saveSharedKeywords(p.provider_id, p.name)}
+                        disabled={sharedKeywordStatus[key] === 'saving'}
+                      >
+                        Guardar palabras
+                      </Button>
                     </div>
                   </div>
-                  <div style={{ width: 170 }}>
-                    <Field
-                      label="Fecha de nacimiento"
-                      type="date"
-                      icon={Cake}
-                      value={sharedStaff[p.name]?.birth_date ?? ''}
-                      onChange={(v) => setSharedStaffField(p.name, 'birth_date', v)}
-                    />
-                  </div>
-                  <div style={{ width: 110 }}>
-                    <Field
-                      label="Comisión"
-                      type="number"
-                      suffix="%"
-                      value={sharedStaff[p.name]?.commission_pct ?? ''}
-                      onChange={(v) => setSharedStaffField(p.name, 'commission_pct', v)}
-                    />
-                  </div>
-                  <SaveStatus status={sharedStaffStatus[p.name]} />
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => saveSharedStaff(p.name)}
-                    disabled={sharedStaffStatus[p.name] === 'saving'}
-                  >
-                    Guardar
-                  </Button>
-                </div>
-              ))
+                );
+              })
             )}
           </Card>
 
