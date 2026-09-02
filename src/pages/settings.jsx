@@ -345,6 +345,7 @@ const Settings = () => {
           commission_period_end_day: p.commission_period_end_day ?? '',
           commission_pay_day: p.commission_pay_day ?? '',
           commission_min_guarantee: p.commission_min_guarantee ?? '',
+          colaborador_alias: p.colaborador_alias ?? '',
           no_commission_services: p.no_commission_services ?? [],
         };
       });
@@ -380,6 +381,7 @@ const Settings = () => {
         commission_period_end_day: p.commission_period_end_day === '' ? null : Number(p.commission_period_end_day),
         commission_pay_day: p.commission_pay_day === '' ? null : Number(p.commission_pay_day),
         commission_min_guarantee: p.commission_min_guarantee === '' ? null : Number(p.commission_min_guarantee),
+        colaborador_alias: p.colaborador_alias || null,
       });
       setStaffProfileStatus((s) => ({ ...s, [professionalId]: 'saved' }));
       setTimeout(() => setStaffProfileStatus((s) => ({ ...s, [professionalId]: null })), 3000);
@@ -769,6 +771,14 @@ const Settings = () => {
                           icon={Mail}
                           value={local.email}
                           onChange={(v) => setStaffProfileField(p.professional_id, 'email', v)}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 18 }}>
+                        <Field
+                          label="Nombre en hoja de gastos"
+                          value={local.colaborador_alias}
+                          onChange={(v) => setStaffProfileField(p.professional_id, 'colaborador_alias', v)}
                         />
                       </div>
 
