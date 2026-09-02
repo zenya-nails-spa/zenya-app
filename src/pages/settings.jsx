@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Cake, Phone, Mail, Calendar, Wallet, Clock, Ban, X } from 'lucide-react';
+import { Cake, Phone, Mail, Calendar, Wallet, Clock, Ban, X, Plus, RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApi } from '../hooks/use-api';
 import { applyTheme } from '../App';
 import Card from '../components/ui/card';
 import Button from '../components/ui/button';
+import IconButton from '../components/ui/icon-button';
 import Avatar from '../components/ui/avatar';
 import Badge from '../components/ui/badge';
 import Select from '../components/ui/select';
@@ -306,12 +307,29 @@ const Settings = () => {
     }
   };
 
-  const { data: staffProfilesData } = useApi(() => api.staffProfiles(), []);
+  const [staffRefreshKey, setStaffRefreshKey] = useState(0);
+  const { data: staffProfilesData } = useApi(() => api.staffProfiles(), [staffRefreshKey]);
   const { data: servicesData } = useApi(() => api.services(), []);
   const [staffProfiles, setStaffProfiles] = useState({});
   const [staffProfileStatus, setStaffProfileStatus] = useState({});
   const [noCommissionStatus, setNoCommissionStatus] = useState({});
   const [noCommissionSearch, setNoCommissionSearch] = useState({});
+  const [syncingProfessionals, setSyncingProfessionals] = useState(false);
+  const [syncProfessionalsMsg, setSyncProfessionalsMsg] = useState(null);
+
+  const handleSyncProfessionals = async () => {
+    setSyncingProfessionals(true);
+    setSyncProfessionalsMsg(null);
+    try {
+      const res = await api.syncProfessionals();
+      setSyncProfessionalsMsg(`Sincronizado: ${res.synced_count} colaboradoras`);
+      setStaffRefreshKey((k) => k + 1);
+    } catch {
+      setSyncProfessionalsMsg('No se pudo sincronizar, intenta de nuevo');
+    } finally {
+      setSyncingProfessionals(false);
+    }
+  };
 
   useEffect(() => {
     if (staffProfilesData) {
@@ -438,9 +456,13 @@ const Settings = () => {
     }
   };
 
-  const { data: receptionStaffData } = useApi(() => api.receptionStaffProfiles(), []);
+  const [receptionRefreshKey, setReceptionRefreshKey] = useState(0);
+  const { data: receptionStaffData } = useApi(() => api.receptionStaffProfiles(), [receptionRefreshKey]);
   const [receptionStaff, setReceptionStaff] = useState({});
   const [receptionStaffStatus, setReceptionStaffStatus] = useState({});
+  const [newReceptionName, setNewReceptionName] = useState('');
+  const [addingReceptionStaff, setAddingReceptionStaff] = useState(false);
+  const [addReceptionError, setAddReceptionError] = useState(null);
 
   useEffect(() => {
     if (receptionStaffData) {
@@ -458,6 +480,32 @@ const Settings = () => {
       await api.updateReceptionStaffProfile(name, { birth_date: receptionStaff[name] || null });
       setReceptionStaffStatus((s) => ({ ...s, [name]: 'saved' }));
       setTimeout(() => setReceptionStaffStatus((s) => ({ ...s, [name]: null })), 3000);
+    } catch {
+      setReceptionStaffStatus((s) => ({ ...s, [name]: 'error' }));
+    }
+  };
+
+  const addReceptionStaff = async () => {
+    const name = newReceptionName.trim();
+    if (!name) return;
+    setAddingReceptionStaff(true);
+    setAddReceptionError(null);
+    try {
+      await api.addReceptionStaff(name);
+      setNewReceptionName('');
+      setReceptionRefreshKey((k) => k + 1);
+    } catch (e) {
+      setAddReceptionError(e.message || 'No se pudo agregar');
+    } finally {
+      setAddingReceptionStaff(false);
+    }
+  };
+
+  const removeReceptionStaff = async (name) => {
+    setReceptionStaffStatus((s) => ({ ...s, [name]: 'saving' }));
+    try {
+      await api.updateReceptionStaffProfile(name, { active: false });
+      setReceptionRefreshKey((k) => k + 1);
     } catch {
       setReceptionStaffStatus((s) => ({ ...s, [name]: 'error' }));
     }
@@ -618,6 +666,30 @@ const Settings = () => {
             eyebrow="Colaboradoras"
             title="Perfil de colaboradoras"
             info="Datos, días de trabajo y período de pago de comisión de cada manicurista. Se guarda por separado para cada una."
+            action={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {syncProfessionalsMsg && (
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 'var(--text-xs)',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    {syncProfessionalsMsg}
+                  </span>
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  iconLeft={RefreshCw}
+                  onClick={handleSyncProfessionals}
+                  disabled={syncingProfessionals}
+                >
+                  {syncingProfessionals ? 'Sincronizando…' : 'Sincronizar ahora'}
+                </Button>
+              </div>
+            }
           >
             {(staffProfilesData ?? []).length === 0 ? (
               <div
@@ -1030,9 +1102,36 @@ const Settings = () => {
 
           <Card
             eyebrow="Recepción"
-            title="Fecha de nacimiento"
-            info="No genera comisión — solo se le puede configurar la fecha de nacimiento."
+            title="Personal de recepción"
+            info="No genera comisión — solo se le puede configurar la fecha de nacimiento. Agrega o quita personas conforme cambie el equipo de recepción."
           >
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 16 }}>
+              <div style={{ flex: 1, maxWidth: 260 }}>
+                <Field label="Nombre" value={newReceptionName} onChange={setNewReceptionName} />
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                iconLeft={Plus}
+                onClick={addReceptionStaff}
+                disabled={addingReceptionStaff || !newReceptionName.trim()}
+              >
+                {addingReceptionStaff ? 'Agregando…' : 'Agregar'}
+              </Button>
+            </div>
+            {addReceptionError && (
+              <div
+                style={{
+                  color: 'var(--negative)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-xs)',
+                  marginBottom: 12,
+                }}
+              >
+                {addReceptionError}
+              </div>
+            )}
+
             {(receptionStaffData ?? []).length === 0 ? (
               <div
                 style={{
@@ -1043,7 +1142,7 @@ const Settings = () => {
                   fontSize: 'var(--text-sm)',
                 }}
               >
-                Cargando…
+                Sin personal de recepción registrado.
               </div>
             ) : (
               receptionStaffData.map((p, i) => (
@@ -1088,6 +1187,13 @@ const Settings = () => {
                   >
                     Guardar
                   </Button>
+                  <IconButton
+                    icon={X}
+                    title="Quitar de recepción"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => removeReceptionStaff(p.name)}
+                  />
                 </div>
               ))
             )}
