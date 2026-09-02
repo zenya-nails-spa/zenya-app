@@ -119,6 +119,10 @@ export const api = {
   updateNoCommissionServices: (professionalId, body) =>
     put(`/staff-profiles/professionals/${professionalId}/no-commission-services`, body),
   sharedStaffProfiles: () => get('/staff-profiles/shared'),
+  addSharedProviderKeyword: (providerId, name, keywords) =>
+    post('/staff-profiles/shared', { provider_id: providerId, name, keywords }),
+  updateSharedProviderKeyword: (providerId, name, body) =>
+    put(`/staff-profiles/shared/keywords/${providerId}/${encodeURIComponent(name)}`, body),
   updateSharedStaffProfile: (name, body) => put(`/staff-profiles/shared/${encodeURIComponent(name)}`, body),
   receptionStaffProfiles: () => get('/staff-profiles/reception'),
   addReceptionStaff: (name) => post('/staff-profiles/reception', { name }),
