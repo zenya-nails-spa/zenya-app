@@ -12,6 +12,7 @@ import Avatar from '../components/ui/avatar';
 import SegmentedControl from '../components/ui/segmented-control';
 import StaffHoursPanel from '../components/widgets/staff-hours-panel';
 import StaffRendimientoPanel from '../components/widgets/staff-rendimiento-panel';
+import StaffCommissionsPanel from '../components/widgets/staff-commissions-panel';
 
 const money = (v) => '$' + Math.round(v).toLocaleString('es-MX');
 const CHART = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
@@ -73,6 +74,7 @@ const Staff = ({ dateRange }) => {
         options={[
           { value: 'performance', label: 'Desempeño' },
           { value: 'rendimiento', label: 'Rendimiento' },
+          { value: 'comisiones', label: 'Comisiones' },
           { value: 'hours', label: 'Horas' },
         ]}
       />
@@ -80,6 +82,8 @@ const Staff = ({ dateRange }) => {
       {tab === 'hours' && <StaffHoursPanel />}
 
       {tab === 'rendimiento' && <StaffRendimientoPanel />}
+
+      {tab === 'comisiones' && <StaffCommissionsPanel dateRange={dateRange} />}
 
       {tab === 'performance' && (
         <>
